@@ -1,0 +1,15 @@
+"ID","ACTIVE","CATEGORY","CGST","COMPANY_NAME","COMPOSITION","HSN_CODE","PRODUCT_CODE","PRODUCT_NAME","PRODUCT_QUANTITY","PRODUCT_TYPE","SGST","RACK_LOCATION","REORDER_LEVEL"
+"1","TRUE","medicine","6.0","GlaxoSmithKline","Paracetamol IP 500mg","3004","MED-PARA-500","Paracetamol 500mg","10 Tablets/Strip","Tablet","6.0","A23","3"
+"2","TRUE","medicine","6.0","Sandoz","Amoxicillin Trihydrate IP 250mg","3004","MED-AMOX-250","Amoxicillin 250mg","10 Capsules/Strip","Capsule","6.0",,
+"3","TRUE","medicine","6.0","Teva Pharmaceuticals","Metformin Hydrochloride IP 500mg","3004","MED-METF-500","Metformin 500mg","15 Tablets/Strip","Tablet","6.0",,
+"4","TRUE","medicine","2.5","Sanofi","Insulin Glargine 100 U/mL","3002","MED-INSU-GL","Insulin Glargine 100 U/mL","1 Vial","Injection","2.5",,
+"5","TRUE","cosmetics","9.0","Himalaya Wellness","Aloe Barbadensis Leaf Juice 10% w/w","3304","COS-ALOE-M","Aloe Vera Hydrating Gel","100g tube","Ointment","9.0",,
+"6","TRUE","food","9.0","Abbott Nutrition","Protein, Vitamins & Minerals Complex","2106","FOD-PROT-S","Ensure Protein Supplement","400g jar","Powder","9.0",,
+"33","TRUE","medicine","2.5","cipla","Ljhist Mont","3002","LHI346","Lhist Mont","15 Tablets/Strip","Tablet","2.5",,
+"65","TRUE","medicine","6.0","cipla","Reswas","3004","SKU-RESWAS","reswas","10 tabs/strip","Syrup","6.0",,
+"97","TRUE","medicine","6.0","mbbj","jn","3004","bmn mn","bn jkbvn","10 Tablets/Strip","Tablet","6.0",,
+"98","TRUE","medicine","6.0","sjjsk","cs,nc,","3004","dcnkdc","sjb","10 Tablets/Strip","Tablet","6.0","A1","2"
+"99","TRUE","medicine","6.0","smbjb","sbmbjcs","3004","mbsjb","smbs","10 Tablets/Strip","Tablet","6.0",,
+"100","TRUE","medicine","6.0","knnks","csknkncs","3004","knkkn","sjsn","10 Tablets/Strip","Capsule","6.0",,
+"129","TRUE","medicine","6.0","lkked","jwn,","3004","knke","wddq,w","10 Tablets/Strip","Tablet","6.0","A2","12"
+"130","TRUE","medicine","2.5","cipla","nnj","3002","bjhh","mm","10 Tablets/Strip","Tablet","2.5","m1","10"

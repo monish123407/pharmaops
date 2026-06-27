@@ -1,0 +1,75 @@
+/* Customers Layout Styles */
+.customer-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  max-height: 68vh;
+  overflow-y: auto;
+  gap: 20px;
+  margin-bottom: 30px;
+  padding-right: 12px;
+  scroll-behavior: smooth;
+  width: 100%;
+}
+
+.customer-grid::-webkit-scrollbar {
+  width: 8px;
+}
+.customer-grid::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 4px;
+}
+.customer-grid::-webkit-scrollbar-thumb {
+  background: rgba(20, 184, 166, 0.25);
+  border-radius: 4px;
+}
+.customer-grid::-webkit-scrollbar-thumb:hover {
+  background: var(--color-primary);
+}
+
+.customer-card {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.customer-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 12px;
+}
+
+.customer-name {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--text-heading);
+}
+
+.customer-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 0.85rem;
+}
+
+.customer-contact-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.customer-contact-icon {
+  font-size: 1rem;
+  color: var(--color-primary);
+  width: 20px;
+}
+
+.customer-footer {
+  border-top: 1px solid var(--border-color);
+  padding-top: 14px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}

@@ -1,0 +1,351 @@
+<div class="customer-analysis-container">
+
+  <!-- Section Header -->
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;" class="no-print">
+    <div>
+      <h2 style="margin: 0; color: var(--color-primary); font-family: 'Outfit', sans-serif;">👤 Customer Sales Analytics</h2>
+      <p style="margin: 4px 0 0 0; font-size: 0.85rem; color: var(--text-muted);">Analyze customer spend, group loyalty segments, and drill down into patient purchase history</p>
+    </div>
+  </div>
+
+  <!-- Filters & Controls Toolbar -->
+  <div class="filter-panel no-print">
+    <div class="preset-row">
+      <div class="preset-buttons">
+        <button class="btn-preset" [class.active]="activePreset() === 'today'" (click)="quickSelect('today')">Today</button>
+        <button class="btn-preset" [class.active]="activePreset() === 'thisWeek'" (click)="quickSelect('thisWeek')">This Week</button>
+        <button class="btn-preset" [class.active]="activePreset() === 'thisMonth'" (click)="quickSelect('thisMonth')">This Month</button>
+        <button class="btn-preset" [class.active]="activePreset() === 'thisYear'" (click)="quickSelect('thisYear')">This Year</button>
+      </div>
+
+      <div class="custom-range">
+        <div class="filter-group">
+          <input type="date" class="input-date" [ngModel]="startDate()" (ngModelChange)="startDate.set($event); loadData()">
+        </div>
+        <span class="control-label">to</span>
+        <div class="filter-group">
+          <input type="date" class="input-date" [ngModel]="endDate()" (ngModelChange)="endDate.set($event); loadData()">
+        </div>
+        <button class="btn-apply" (click)="loadData()">🔄 Refresh</button>
+      </div>
+    </div>
+  </div>
+
+  @if (loading()) {
+    <div class="loading-overlay-blur">
+      <div class="spinner"></div>
+      <div style="font-weight: 600; font-size: 0.95rem;">Compiling customer purchase records...</div>
+    </div>
+  } @else if (summary()) {
+
+    <!-- KPI Summary Grid -->
+    <div class="kpi-grid">
+      <div class="glass-panel kpi-card">
+        <div class="kpi-label">👤 Total Registered Customers</div>
+        <div class="kpi-value">{{ summary().totalRegisteredCustomers }}</div>
+        <div class="kpi-meta">Profiles saved in directory</div>
+      </div>
+      <div class="glass-panel kpi-card">
+        <div class="kpi-label">💰 Total Registered Spend</div>
+        <div class="kpi-value" style="color: var(--color-success);">₹{{ summary().totalRegisteredSpend | number:'1.2-2' }}</div>
+        <div class="kpi-meta">From customer checkouts</div>
+      </div>
+      <div class="glass-panel kpi-card">
+        <div class="kpi-label">🎟️ Avg Spend per Customer</div>
+        <div class="kpi-value">₹{{ (summary().totalRegisteredCustomers > 0 ? summary().totalRegisteredSpend / summary().totalRegisteredCustomers : 0) | number:'1.2-2' }}</div>
+        <div class="kpi-meta">Average Customer Lifetime Value</div>
+      </div>
+      <div class="glass-panel kpi-card">
+        <div class="kpi-label">📈 Customer Loyalty Ratio</div>
+        <div class="kpi-value" style="color: var(--color-primary);">{{ (summary().totalTransactions > 0 ? (summary().registeredTransactions / summary().totalTransactions) * 100 : 0) | number:'1.1-1' }}%</div>
+        <div class="kpi-meta">Registered vs Walk-in checkouts</div>
+      </div>
+    </div>
+
+    <!-- Visual Distribution Section -->
+    <div class="charts-row">
+      <!-- Spend Splits -->
+      <div class="glass-panel chart-box">
+        <h3 class="chart-box-title">💳 Sales Volume Splits (Spend)</h3>
+        <div style="display: flex; flex-direction: column; gap: 16px; margin-top: 15px;">
+          <div>
+            <div class="bar-label-row">
+              <span>👤 Registered Customers Spend (₹{{ summary().totalRegisteredSpend | number:'1.0-0' }})</span>
+              <strong>{{ registeredSpendPercentage() | number:'1.1-1' }}%</strong>
+            </div>
+            <div class="progress-track">
+              <div class="progress-bar" [style.width.%]="registeredSpendPercentage()" style="background: var(--color-primary);"></div>
+            </div>
+          </div>
+          <div>
+            <div class="bar-label-row">
+              <span>🚶 Walk-in Spenders (₹{{ summary().totalWalkInSpend | number:'1.0-0' }})</span>
+              <strong>{{ walkInSpendPercentage() | number:'1.1-1' }}%</strong>
+            </div>
+            <div class="progress-track">
+              <div class="progress-bar" [style.width.%]="walkInSpendPercentage()" style="background: #94a3b8;"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Customer Loyalty Segments -->
+      <div class="glass-panel chart-box">
+        <h3 class="chart-box-title">📊 Registered Customer Segments</h3>
+        <div style="display: flex; flex-direction: column; gap: 12px; margin-top: 15px;">
+          <div>
+            <div class="bar-label-row">
+              <span>🏆 High Value (> ₹500 Spend)</span>
+              <strong>{{ summary().highSpendersCount }} customer(s) ({{ highSpendersPercentage() | number:'1.1-1' }}%)</strong>
+            </div>
+            <div class="progress-track">
+              <div class="progress-bar" [style.width.%]="highSpendersPercentage()" style="background: var(--color-success);"></div>
+            </div>
+          </div>
+          <div>
+            <div class="bar-label-row">
+              <span>🤝 Regulars (₹200 - ₹500 Spend)</span>
+              <strong>{{ summary().regularSpendersCount }} customer(s) ({{ regularSpendersPercentage() | number:'1.1-1' }}%)</strong>
+            </div>
+            <div class="progress-track">
+              <div class="progress-bar" [style.width.%]="regularSpendersPercentage()" style="background: var(--color-primary);"></div>
+            </div>
+          </div>
+          <div>
+            <div class="bar-label-row">
+              <span>🏷️ Casual Spenders (< ₹200 Spend)</span>
+              <strong>{{ summary().casualSpendersCount }} customer(s) ({{ casualSpendersPercentage() | number:'1.1-1' }}%)</strong>
+            </div>
+            <div class="progress-track">
+              <div class="progress-bar" [style.width.%]="casualSpendersPercentage()" style="background: var(--color-warning);"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Navigation Tab Links -->
+    <div class="tabs-header no-print">
+      <button class="tab-link" [class.active]="activeTab() === 'leaderboard'" (click)="activeTab.set('leaderboard')">
+        🏆 Spenders Leaderboard
+      </button>
+      <button class="tab-link" [class.active]="activeTab() === 'drilldown'" (click)="activeTab.set('drilldown')">
+        🔍 Customer Profile Drill-Down
+      </button>
+    </div>
+
+    <!-- Tab 1 Content: Leaderboard -->
+    @if (activeTab() === 'leaderboard') {
+      <div class="glass-panel animate-fade-in" style="padding: 0; overflow: hidden;">
+        <table class="analytics-table">
+          <thead>
+            <tr>
+              <th style="width: 60px; text-align: center;">Rank</th>
+              <th>Customer Name</th>
+              <th>Mobile Number</th>
+              <th>Residential Address</th>
+              <th style="text-align: center;">Total Visits</th>
+              <th style="text-align: right;">Average Ticket (₹)</th>
+              <th style="text-align: right;">Total Spent (₹)</th>
+              <th>Last Visit Date</th>
+              <th style="text-align: center;" class="no-print">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (row of summary().leaderboard; track row.phone; let rank = $index) {
+              <tr>
+                <td style="text-align: center; font-weight: 700; color: var(--color-primary);">
+                  {{ rank + 1 }}
+                </td>
+                <td style="font-weight: 700; color: var(--text-heading);">
+                  {{ row.name }}
+                </td>
+                <td style="font-family: monospace; font-size: 0.85rem;">
+                  {{ row.phone }}
+                </td>
+                <td style="color: var(--text-muted);">
+                  {{ row.address }}
+                </td>
+                <td style="text-align: center; font-weight: 600;">
+                  {{ row.visitCount }}
+                </td>
+                <td style="text-align: right;">
+                  ₹{{ row.averageOrderValue | number:'1.2-2' }}
+                </td>
+                <td style="text-align: right; font-weight: 700; color: var(--color-success);">
+                  ₹{{ row.totalSpent | number:'1.2-2' }}
+                </td>
+                <td>
+                  {{ row.lastVisitDate }}
+                </td>
+                <td style="text-align: center;" class="no-print">
+                  <button class="btn-inspect" (click)="selectCustomerForDrilldown(row.phone)">
+                    🔍 Drill-down
+                  </button>
+                </td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="9" style="text-align: center; padding: 24px; color: var(--text-muted);">
+                  No registered customer transactions found for this period.
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+
+    <!-- Tab 2 Content: Customer Profile Drill-Down -->
+    @if (activeTab() === 'drilldown') {
+      <div class="drilldown-layout animate-fade-in">
+        
+        <!-- Sidebar Selector Panel -->
+        <div class="glass-panel no-print" style="padding: 16px; display: flex; flex-direction: column; gap: 12px; height: 100%;">
+          <h3 style="margin: 0 0 4px 0; font-size: 0.95rem; color: var(--color-secondary);">Choose Customer Profile</h3>
+          
+          <select class="select-dropdown" [ngModel]="selectedCustomerPhone()" (ngModelChange)="selectedCustomerPhone.set($event)">
+            @for (cust of registeredCustomersList(); track cust.phone) {
+              <option [value]="cust.phone">{{ cust.name }} ({{ cust.phone }})</option>
+            }
+          </select>
+          
+          <div style="font-size: 0.72rem; color: var(--text-muted); line-height: 1.4;">
+            Selecting a customer will display their lifetime financial statistics, preferred medications, and complete list of checkout invoices.
+          </div>
+        </div>
+
+        <!-- Detail Profile Panel -->
+        @if (selectedCustomer()) {
+          <div style="display: flex; flex-direction: column; gap: 20px;">
+            <!-- Profile Info Header Card -->
+            <div class="glass-panel profile-header-card">
+              <div style="display: flex; flex-direction: column; gap: 4px;">
+                <div class="profile-title">{{ selectedCustomer()!.name }}</div>
+                <div style="display: flex; gap: 14px; font-size: 0.8rem; color: var(--text-muted); margin-top: 4px;">
+                  <span>📞 Phone: <strong>{{ selectedCustomer()!.phone }}</strong></span>
+                  <span>📍 Address: <strong>{{ selectedCustomer()!.address }}</strong></span>
+                </div>
+              </div>
+              <div class="profile-badge-tier" [style.background]="selectedCustomer()!.totalSpent > 500 ? 'rgba(16, 185, 129, 0.15)' : 'rgba(20, 184, 166, 0.15)'" [style.color]="selectedCustomer()!.totalSpent > 500 ? 'var(--color-success)' : 'var(--color-primary)'">
+                {{ selectedCustomer()!.totalSpent > 500 ? '🏆 High Spender' : (selectedCustomer()!.totalSpent >= 200 ? '🤝 Regular customer' : '🏷️ Casual visitor') }}
+              </div>
+            </div>
+
+            <!-- Customer Statistics & Medicines -->
+            <div class="profile-details-grid">
+              <!-- Stats -->
+              <div class="glass-panel stats-sub-box">
+                <h4 class="sub-box-title">💰 Lifetime Activity</h4>
+                <div class="stat-list">
+                  <div class="stat-row">
+                    <span>Total Cash Flow:</span>
+                    <strong>₹{{ selectedCustomer()!.totalSpent | number:'1.2-2' }}</strong>
+                  </div>
+                  <div class="stat-row">
+                    <span>Checkout Visits:</span>
+                    <strong>{{ selectedCustomer()!.visitCount }} times</strong>
+                  </div>
+                  <div class="stat-row">
+                    <span>Avg Order Ticket (AOV):</span>
+                    <strong>₹{{ selectedCustomer()!.averageOrderValue | number:'1.2-2' }}</strong>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Top Bought Drugs -->
+              <div class="glass-panel stats-sub-box">
+                <h4 class="sub-box-title">💊 Preferred Medicines / Formulations</h4>
+                <div style="margin-top: 10px;">
+                  @if (selectedCustomerTopMeds().length > 0) {
+                    <ul class="preferred-meds-list">
+                      @for (med of selectedCustomerTopMeds(); track med; let index = $index) {
+                        <li>
+                          <span class="med-rank">#{{ index + 1 }}</span>
+                          <span class="med-name">{{ med }}</span>
+                        </li>
+                      }
+                    </ul>
+                  } @else {
+                    <div style="padding: 10px 0; font-size: 0.78rem; color: var(--text-muted);">
+                      No medicine checkout items logged.
+                    </div>
+                  }
+                </div>
+              </div>
+            </div>
+
+            <!-- Checkout History Timeline -->
+            <div class="glass-panel" style="padding: 16px;">
+              <h4 class="sub-box-title" style="margin-bottom: 12px;">🗓️ Order Transaction History Timeline</h4>
+              
+              <div style="overflow-x: auto;">
+                <table class="analytics-table compact">
+                  <thead>
+                    <tr>
+                      <th>Invoice No</th>
+                      <th>Sale Date</th>
+                      <th>Method</th>
+                      <th>Cashier</th>
+                      <th>Purchased Formulations (Qty)</th>
+                      <th style="text-align: right;">Discount</th>
+                      <th style="text-align: right;">Amount Charged</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (s of selectedCustomerPurchases(); track s.invoiceNumber) {
+                      <tr>
+                        <td style="font-family: monospace; font-weight: 700; color: var(--color-primary);">
+                          {{ s.invoiceNumber }}
+                        </td>
+                        <td>
+                          {{ s.saleDate | date:'medium' }}
+                        </td>
+                        <td>
+                          <span class="badge" [class.badge-success]="s.paymentMethod==='Cash'" [class.badge-info]="s.paymentMethod==='Card'" [class.badge-warning]="s.paymentMethod==='UPI'">
+                            {{ s.paymentMethod }}
+                          </span>
+                        </td>
+                        <td style="font-size: 0.78rem; color: var(--text-muted);">
+                          {{ s.cashierName }}
+                        </td>
+                        <td style="font-size: 0.78rem; line-height: 1.35; padding: 6px 8px;">
+                          @for (item of s.items; track item.id) {
+                            <div style="font-weight: 500;">
+                              ✚ {{ item.medicineName }} 
+                              <span style="color: var(--text-muted); font-size: 0.72rem;">(Qty: {{ item.quantity }}, Batch: {{ item.batchNumber }})</span>
+                            </div>
+                          }
+                        </td>
+                        <td style="text-align: right; color: var(--color-danger); font-size: 0.78rem;">
+                          -₹{{ s.discountAmount | number:'1.2-2' }}
+                        </td>
+                        <td style="text-align: right; font-weight: 700; color: var(--color-success);">
+                          ₹{{ s.finalAmount | number:'1.2-2' }}
+                        </td>
+                      </tr>
+                    } @empty {
+                      <tr>
+                        <td colspan="7" style="text-align: center; padding: 20px; color: var(--text-muted); font-size: 0.78rem;">
+                          No transactions found.
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+          </div>
+        } @else {
+          <div class="glass-panel" style="padding: 24px; text-align: center; color: var(--text-muted); grid-column: span 2;">
+            Please select a customer profile to inspect analytics.
+          </div>
+        }
+
+      </div>
+    }
+
+  }
+
+</div>

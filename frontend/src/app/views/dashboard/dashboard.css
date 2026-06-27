@@ -1,0 +1,238 @@
+/* Dashboard Metrics Layout */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 24px;
+  margin-bottom: 32px;
+}
+
+.stat-card {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+}
+
+.stat-icon {
+  font-size: 2rem;
+  margin-bottom: 12px;
+}
+
+.stat-value {
+  font-size: 2.2rem;
+  font-weight: 800;
+  font-family: 'Outfit', sans-serif;
+  color: var(--text-heading);
+  line-height: 1.1;
+  margin-bottom: 4px;
+}
+
+.stat-label {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Action Required Banner */
+.action-banner {
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  border-radius: var(--radius-md);
+  padding: 16px 24px;
+  margin-bottom: 32px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.action-icon {
+  font-size: 1.8rem;
+  animation: pulseAlert 2s infinite ease-in-out;
+  background: rgba(239, 68, 68, 0.2);
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+}
+
+.action-text h3 {
+  font-size: 1.05rem;
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+
+.action-text p {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+/* Main Dashboard Panel Split */
+.dashboard-split {
+  display: grid;
+  grid-template-columns: 2fr 3fr;
+  gap: 24px;
+  margin-bottom: 32px;
+}
+
+/* Glass Table Styles */
+.sales-table-container {
+  overflow-x: auto;
+  overflow-y: auto;
+  max-height: 360px;
+}
+
+/* Custom scrollbar for recent transactions */
+.sales-table-container::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.sales-table-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+.sales-table-container::-webkit-scrollbar-thumb {
+  background: rgba(13, 148, 136, 0.35);
+  border-radius: 3px;
+}
+.sales-table-container::-webkit-scrollbar-thumb:hover {
+  background: rgba(13, 148, 136, 0.65);
+}
+
+.sales-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 0.9rem;
+}
+
+.sales-table th {
+  padding: 14px 16px;
+  color: var(--text-muted);
+  font-weight: 600;
+  border-bottom: 1px solid var(--border-color);
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  position: sticky;
+  top: 0;
+  background: var(--bg-card, #0f172a);
+  z-index: 1;
+}
+
+.sales-table td {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text-main);
+}
+
+.sales-table tr:hover td {
+  background: rgba(255, 255, 255, 0.01);
+}
+
+/* Custom CSS Bar Chart */
+.chart-container {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  height: 380px;
+}
+
+.chart-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 30px;
+}
+
+.chart-body {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  flex-grow: 1;
+  height: 220px;
+  padding: 0 10px;
+  border-bottom: 2px solid var(--border-color);
+}
+
+.chart-column {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  flex-grow: 1;
+  height: 100%;
+  justify-content: flex-end;
+  position: relative;
+}
+
+.chart-bar-wrap {
+  width: 32px;
+  height: 80%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  position: relative;
+}
+
+.chart-bar {
+  width: 100%;
+  background: linear-gradient(to top, rgba(20, 184, 166, 0.15), var(--color-primary));
+  border-radius: 6px 6px 0 0;
+  transition: height 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  cursor: pointer;
+  position: relative;
+}
+
+.chart-bar:hover {
+  background: linear-gradient(to top, rgba(59, 130, 246, 0.3), var(--color-secondary));
+  box-shadow: 0 0 12px rgba(59, 130, 246, 0.4);
+}
+
+.chart-tooltip {
+  position: absolute;
+  top: -36px;
+  background: #1e293b;
+  color: white;
+  padding: 4px 8px;
+  font-size: 0.75rem;
+  border-radius: 4px;
+  font-weight: 600;
+  border: 1px solid var(--border-color);
+  opacity: 0;
+  pointer-events: none;
+  transition: var(--transition);
+  white-space: nowrap;
+  box-shadow: var(--shadow-sm);
+  transform: translateY(4px);
+}
+
+.chart-column:hover .chart-tooltip {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.chart-label {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+/* Responsive Dashboard */
+@media (max-width: 1200px) {
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .dashboard-split {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+}

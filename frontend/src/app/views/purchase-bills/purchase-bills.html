@@ -1,0 +1,902 @@
+<div class="billing-container animate-fade-in">
+  <div *ngIf="viewMode() === 'entry'" class="animate-fade-in">
+  <!-- Editing Mode Banner -->
+  <div *ngIf="editingBillId()" class="glass-panel animate-fade-in" style="padding: 16px 24px; border: 1px solid var(--color-primary); background: rgba(20,184,166,0.06); display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+    <div>
+      <span style="font-weight: 800; color: var(--color-primary); text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.05em; display: block;">Editing Active Bill Mode</span>
+      <span style="font-size: 0.95rem; font-weight: 700; color: var(--text-heading);">You are editing Wholesaler Invoice: {{ editingBillNumber() }}</span>
+    </div>
+    <button type="button" class="btn btn-secondary" (click)="onCancelEdit()" style="font-size: 0.8rem; padding: 6px 14px;">
+      ❌ Cancel Editing Mode
+    </button>
+  </div>
+
+  <!-- Wholesaler Bill Header Form -->
+  <form (submit)="onSubmitBill($event)" class="glass-panel bill-header-card">
+    
+    <!-- Top Action Row: Placed Order Quick-Loader -->
+    <div style="margin-bottom: 8px; display: grid; grid-template-columns: 1fr; gap: 32px; align-items: flex-end;">
+      <!-- Left side: Load Placed Order -->
+      <div class="input-group" style="position: relative; margin: 0; width: 100%;">
+        <label class="input-label" style="display: flex; align-items: center; gap: 6px; color: var(--color-primary); font-weight: 700; font-size: 0.8rem;">
+          📥 Load Placed Order (Optional)
+        </label>
+        <div style="position: relative; width: 100%;">
+          <input
+            id="header-placed-order-search"
+            type="text"
+            class="form-input"
+            placeholder="Search pending orders by wholesaler or medicines..."
+            [value]="orderQuery()"
+            (input)="onOrderSearchInput($any($event.target).value)"
+            (focus)="loadPlacedOrdersFromStorage(); orderDropdownOpen.set(true)"
+            (blur)="closeOrderDropdown()"
+            autocomplete="off"
+            style="width: 100%; font-size: 0.85rem; height: 36px!important; padding: 8px 12px!important;"
+          />
+          <!-- Autocomplete Dropdown List for Placed Orders -->
+          <div *ngIf="orderDropdownOpen() && filteredPlacedOrders().length > 0" 
+               class="placed-orders-dropdown">
+            <div *ngFor="let order of filteredPlacedOrders()" 
+                 (mousedown)="selectPlacedOrder(order)"
+                 class="autocomplete-row-item" 
+                 style="padding: 10px 14px; cursor: pointer; border-bottom: 1px dashed var(--border-color); display: flex; flex-direction: column; gap: 4px;">
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-weight: 700; font-size: 0.82rem; color: var(--text-heading);">🏢 {{ order.wholesalerName }}</span>
+                <span style="font-size: 0.7rem; color: var(--color-primary); background: rgba(20,184,166,0.1); padding: 2px 6px; border-radius: 4px; font-weight: 700;">{{ order.status }}</span>
+              </div>
+              <div style="font-size: 0.72rem; color: var(--text-muted);">
+                📅 {{ formatPlacedOrderDate(order.orderDate) }} · {{ order.items.length }} medicine(s)
+              </div>
+              <div style="font-size: 0.68rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px;">
+                📦 {{ getItemsSummaryString(order) }}
+              </div>
+            </div>
+          </div>
+          <!-- Empty State for Placed Orders Search -->
+          <div *ngIf="orderDropdownOpen() && filteredPlacedOrders().length === 0 && orderQuery().trim().length > 0" 
+               style="position: absolute; top: 100%; left: 0; right: 0; z-index: 9999;
+                      background: #141c31; border: 1px solid var(--border-color);
+                      border-radius: var(--radius-sm); padding: 14px; text-align: center; font-size: 0.78rem; color: var(--text-muted); margin-top: 4px; box-shadow: 0 10px 30px rgba(0,0,0,0.6);">
+            No pending/placed orders found matching "{{ orderQuery() }}"
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-grid-4-equal">
+      <div class="input-group" style="position: relative;">
+        <label class="input-label">Select Supplier *</label>
+        <div style="position: relative; width: 100%;">
+          <input
+            id="header-supplier-search"
+            type="text"
+            class="form-input"
+            placeholder="Type to search wholesaler..."
+            [value]="selectedSupplier() || supplierSearchQuery()"
+            (input)="onSupplierSearch($any($event.target).value)"
+            (focus)="supplierDropdownOpen.set(true); supplierSearchQuery.set(selectedSupplier()); activeSupplierItemIndex.set(0)"
+            (blur)="closeSupplierDropdown()"
+            (keydown.enter)="onSupplierSearchKeyDown($event, 'enter')"
+            (keydown.escape)="onSupplierSearchKeyDown($event, 'escape')"
+            (keydown.arrowdown)="onSupplierSearchKeyDown($event, 'down')"
+            (keydown.arrowup)="onSupplierSearchKeyDown($event, 'up')"
+            autocomplete="off"
+            required
+            style="width: 100%; padding-right: 32px;"
+          />
+          <!-- Autocomplete Dropdown List for Suppliers -->
+          <div *ngIf="supplierDropdownOpen() && filteredSuppliers().length > 0" 
+               class="placed-orders-dropdown"
+               style="max-height: 200px; margin-top: 4px; width: 100%;">
+            <div *ngFor="let sup of filteredSuppliers(); let idx = index" 
+                 (mousedown)="selectSupplier(sup)"
+                 class="autocomplete-row-item" 
+                 [class.active-item]="idx === activeSupplierItemIndex()"
+                 style="padding: 8px 12px; cursor: pointer; border-bottom: 1px dashed var(--border-color);">
+              <span style="font-weight: 700; font-size: 0.82rem; color: var(--text-heading);">{{ sup.name }}</span>
+              <span *ngIf="sup.phone" style="font-size: 0.7rem; color: var(--text-muted); float: right;">📞 {{ sup.phone }}</span>
+            </div>
+          </div>
+          <!-- Clear Button -->
+          <button
+            *ngIf="selectedSupplier()"
+            type="button"
+            class="btn-clear-pill"
+            (click)="clearSupplierSelection()"
+            style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 1.1rem; padding: 0; line-height: 1;"
+          >
+            ×
+          </button>
+        </div>
+      </div>
+
+      <div class="input-group">
+        <label class="input-label">Supplier Invoice No *</label>
+        <input id="header-invoiceNo" type="text" class="form-input" [value]="invoiceNo()" (input)="invoiceNo.set($any($event.target).value)" (keydown.enter)="onHeaderEnter($event, 'invoiceNo')" (keydown.escape)="onHeaderEscape($event, 'invoiceNo')" placeholder="e.g. GST-9988-26" required>
+      </div>
+
+      <div class="input-group">
+        <label class="input-label">Supplier Invoice Date *</label>
+        <input id="header-invoiceDate" type="date" class="form-input" [value]="invoiceDate()" (input)="invoiceDate.set($any($event.target).value)" (keydown.enter)="onHeaderEnter($event, 'invoiceDate')" (keydown.escape)="onHeaderEscape($event, 'invoiceDate')" required>
+      </div>
+
+      <div class="input-group">
+        <label class="input-label">Net Amount (₹) *</label>
+        <input id="header-netAmount" type="number" step="0.01" class="form-input" [value]="netAmount()" (input)="netAmount.set(+$any($event.target).value)" (keydown.enter)="onHeaderEnter($event, 'netAmount')" (keydown.escape)="onHeaderEscape($event, 'netAmount')" placeholder="Expected final bill total" required style="font-weight: 700; color: var(--color-secondary);">
+      </div>
+    </div>
+  </form>
+
+  <!-- Multi-Item Bulk Table Grid -->
+  <div class="glass-panel bill-table-card animate-fade-in">
+    <div class="table-container">
+      <table class="bill-table">
+        <thead>
+          <tr>
+            <th style="width: 340px;">Medicine Formulation (Search Master) *</th>
+            <th style="width: 110px;">Quatity *</th>
+            <th style="width: 110px;">Free</th>
+            <th style="width: 120px;">Batch No *</th>
+            <th style="width: 150px;">Expiry Date *</th>
+            <th style="width: 120px;">Reorder</th>
+            <th style="width: 130px;">Rack Location</th>
+            <th style="width: 140px;">MRP (₹) *</th>
+            <th style="width: 140px;">Rate (₹) *</th>
+            <th style="width: 110px;">Disc %</th>
+            <th style="width: 110px;">Taxable</th>
+            <th style="width: 80px;">GST %</th>
+            <th style="width: 120px;">Total (₹)</th>
+            <th style="width: 50px;">Act</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let item of items(); let i = index; trackBy: trackItemBy">
+            <!-- Medicine Search Autocomplete -->
+            <td style="position: relative;">
+              <div *ngIf="item.productCode && !rowSearchMode()[i]" class="selected-product-pill">
+                <span class="product-pill-name">{{ item.productName }}</span>
+                <span class="product-pill-sku">SKU: {{ item.productCode }}</span>
+                <button type="button" class="btn-clear-pill" (click)="onRowInputChange(i, 'productCode', '')">×</button>
+              </div>
+              <div *ngIf="!item.productCode || rowSearchMode()[i]" style="position: relative;">
+                <input [id]="'search-input-' + i" type="text" class="form-input table-search" [value]="rowSearchQueries()[i]" 
+                       (input)="onSearchMasterRow(i, $any($event.target).value)" 
+                       (keydown.arrowdown)="onSearchKeyDown($event, i, 'down')"
+                       (keydown.arrowup)="onSearchKeyDown($event, i, 'up')"
+                       (keydown.enter)="onSearchKeyDown($event, i, 'enter')"
+                       (keydown.escape)="onSearchKeyDown($event, i, 'escape')"
+                       placeholder="Type product name or SKU...">
+                <!-- Autocomplete Dropdown List -->
+                <div *ngIf="rowDropdownOpen()[i]" class="row-autocomplete-dropdown">
+                  <div *ngIf="getFilteredMastersRow(i).length > 0">
+                    <div *ngFor="let master of getFilteredMastersRow(i); let itemIndex = index" class="autocomplete-row-item" [class.active-item]="itemIndex === activeListItemIndex()" (click)="onSelectMasterRow(i, master)" style="display: flex; justify-content: space-between; align-items: center; gap: 12px;">
+                      <div>
+                        <div style="font-weight: 700; font-size: 0.8rem; color: var(--text-heading);">{{ master.productName }}</div>
+                        <div style="font-size: 0.65rem; color: var(--text-muted); display: flex; gap: 6px; margin-top: 2px;">
+                          
+                          <span> Comp: {{ master.composition }}</span>
+                          <span>| HSN code: {{master.hsnCode}}</span>
+                          <span>| Tax: {{ master.cgst + master.sgst }}%</span>
+                        </div>
+                      </div>
+                      <button type="button" class="btn-edit-master" (click)="onOpenEditMasterModal(i, master, $event)" title="Edit master details for this medicine">
+                        ✏️ Edit
+                      </button>
+                    </div>
+                  </div>
+                  <div *ngIf="getFilteredMastersRow(i).length === 0 && rowSearchQueries()[i].trim().length > 0" style="padding: 14px; text-align: center; display: flex; flex-direction: column; gap: 8px; background: var(--bg-sidebar);">
+                    <div style="font-size: 0.78rem; color: var(--text-muted);">
+                      No matching product found in directory.
+                    </div>
+                    <button type="button" class="btn btn-primary" (click)="onOpenAddMasterModal(i, rowSearchQueries()[i], $event)" style="font-size: 0.72rem; padding: 6px 10px; width: 100%; display: flex; align-items: center; justify-content: center; gap: 4px; background: var(--color-primary); color: #000; border: none; font-weight: 700; border-radius: var(--radius-sm); cursor: pointer;">
+                      ➕ Register "{{ rowSearchQueries()[i] }}"
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </td>
+
+            <!-- Quantity -->
+            <td>
+              <input [id]="'qty-input-' + i" type="number" step="1" class="form-input" min="1" [value]="item.quantity" (input)="onRowInputChange(i, 'quantity', $any($event.target).value)" (keydown.enter)="onInputEnter($event, i, 'qty')" (keydown.escape)="onInputEscape($event, i, 'qty')" required>
+            </td>
+
+            <!-- Free Units -->
+            <td>
+              <input [id]="'free-input-' + i" type="number" step="1" class="form-input" min="0" [value]="item.loose" (input)="onRowInputChange(i, 'loose', $any($event.target).value)" (keydown.enter)="onInputEnter($event, i, 'free')" (keydown.escape)="onInputEscape($event, i, 'free')">
+            </td>
+
+            <!-- Batch Number with Autocomplete -->
+            <td style="position: relative;">
+              <input [id]="'batch-input-' + i" type="text" class="form-input"
+                [value]="item.batchNumber"
+                (input)="onBatchInputChange(i, $any($event.target).value)"
+                (keydown.arrowdown)="onBatchKeyDown($event, i, 'down')"
+                (keydown.arrowup)="onBatchKeyDown($event, i, 'up')"
+                (keydown.enter)="onBatchKeyDown($event, i, 'enter')"
+                (keydown.escape)="onBatchKeyDown($event, i, 'escape')"
+                (blur)="closeBatchDropdown(i)"
+                placeholder="B-REF" required
+                autocomplete="off">
+              <!-- Batch Dropdown -->
+              <div *ngIf="rowBatchDropdownOpen()[i] && getFilteredBatchOptions(i).length > 0"
+                style="position: absolute; top: 100%; left: 0; right: 0; z-index: 999;
+                       background: var(--bg-surface, #1e2a3a); border: 1px solid var(--color-primary);
+                       border-radius: 6px; max-height: 180px; overflow-y: auto;
+                       box-shadow: 0 8px 24px rgba(0,0,0,0.35); min-width: 220px;">
+                <div *ngFor="let opt of getFilteredBatchOptions(i); let bi = index"
+                  (mousedown)="onSelectBatch(i, opt)"
+                  [style.background]="bi === activeBatchItemIndex() ? 'rgba(20,184,166,0.18)' : 'transparent'"
+                  style="padding: 7px 12px; cursor: pointer; font-size: 0.82rem;
+                         border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; flex-direction: column; gap: 2px;">
+                  <span style="font-weight: 700; color: var(--color-primary, #14b8a6);">{{ opt.batchNumber }}</span>
+                  <span style="font-size: 0.72rem; color: var(--text-muted, #94a3b8);">
+                    Exp: {{ formatDateToMMYYYY(opt.expiryDate) }} &nbsp;|&nbsp; MRP: ₹{{ opt.mrp }} &nbsp;|&nbsp; Rate: ₹{{ opt.rate }}
+                  </span>
+                </div>
+              </div>
+            </td>
+
+            <!-- Expiry Date -->
+            <td>
+              <input [id]="'expiry-input-' + i" type="text" class="form-input" [value]="formatDateToMMYYYY(item.expiryDate)" (input)="onRowInputChange(i, 'expiryDate', $any($event.target).value, $event)" (blur)="checkExpiryAlert(i)" (keydown.enter)="onInputEnter($event, i, 'expiry')" (keydown.escape)="onInputEscape($event, i, 'expiry')" placeholder="MM/YYYY" maxlength="7" required>
+            </td>
+
+            <!-- Re-order Limit -->
+            <td>
+              <input [id]="'reorder-input-' + i" type="number" step="1" class="form-input" min="1" [value]="item.reorderLevel !== undefined && item.reorderLevel !== null ? item.reorderLevel : ''" (input)="onRowInputChange(i, 'reorderLevel', $any($event.target).value)" (keydown.enter)="onInputEnter($event, i, 'reorder')" (keydown.escape)="onInputEscape($event, i, 'reorder')">
+            </td>
+
+            <!-- Rack Location -->
+            <td>
+              <input [id]="'rack-input-' + i" type="text" class="form-input" [value]="item.rackLocation" (input)="onRowInputChange(i, 'rackLocation', $any($event.target).value)" (keydown.enter)="onInputEnter($event, i, 'rack')" (keydown.escape)="onInputEscape($event, i, 'rack')" placeholder="e.g. A-12">
+            </td>
+
+            <!-- MRP -->
+            <td>
+              <input [id]="'mrp-input-' + i" type="number" step="any" class="form-input" min="0" [value]="item.mrp" (input)="onRowInputChange(i, 'mrp', $any($event.target).value)" (keydown.enter)="onInputEnter($event, i, 'mrp')" (keydown.escape)="onInputEscape($event, i, 'mrp')" placeholder="MRP" required>
+            </td>
+
+            <!-- Purchase Rate -->
+            <td>
+              <input [id]="'rate-input-' + i" type="number" step="any" class="form-input" min="0" [value]="item.rate" (input)="onRowInputChange(i, 'rate', $any($event.target).value)" (keydown.enter)="onInputEnter($event, i, 'rate')" (keydown.escape)="onInputEscape($event, i, 'rate')" placeholder="Cost" required>
+            </td>
+
+            <!-- Discount % -->
+            <td>
+              <input [id]="'discount-input-' + i" type="number" step="any" class="form-input" min="0" max="100" [value]="item.discountPercentage" (input)="onRowInputChange(i, 'discountPercentage', $any($event.target).value)" (keydown.enter)="onInputEnter($event, i, 'discount')" (keydown.escape)="onInputEscape($event, i, 'discount')">
+            </td>
+
+            <!-- Taxable Amount Display -->
+            <td>
+              <div style="font-weight: 500; font-size: 0.82rem;">₹{{ item.taxableAmount | number:'1.2-2' }}</div>
+            </td>
+
+            <!-- GST Slab Display -->
+            <td>
+              <div style="display: flex; flex-direction: column; gap: 4px; min-width: 80px;">
+                <div style="display: flex; align-items: center; gap: 4px;">
+                  <span style="font-size: 0.65rem; color: var(--text-muted); width: 14px; text-align: left;">C:</span>
+                  <input [id]="'cgst-input-' + i" type="number" step="0.1" class="form-input" style="padding: 2px 4px!important; height: 22px!important; font-size: 0.75rem!important; text-align: right; width: 44px;" [value]="item.cgstRate" (input)="onRowInputChange(i, 'cgstRate', $any($event.target).value)" (keydown.enter)="onInputEnter($event, i, 'cgst')" (keydown.escape)="onInputEscape($event, i, 'cgst')">
+                  <span style="font-size: 0.65rem; color: var(--text-muted);">%</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 4px;">
+                  <span style="font-size: 0.65rem; color: var(--text-muted); width: 14px; text-align: left;">S:</span>
+                  <input [id]="'sgst-input-' + i" type="number" step="0.1" class="form-input" style="padding: 2px 4px!important; height: 22px!important; font-size: 0.75rem!important; text-align: right; width: 44px;" [value]="item.sgstRate" (input)="onRowInputChange(i, 'sgstRate', $any($event.target).value)" (keydown.enter)="onInputEnter($event, i, 'sgst')" (keydown.escape)="onInputEscape($event, i, 'sgst')">
+                  <span style="font-size: 0.65rem; color: var(--text-muted);">%</span>
+                </div>
+              </div>
+            </td>
+
+            <!-- Row Calculated Total Display -->
+            <td>
+              <div style="font-weight: 700; font-size: 0.88rem; color: var(--color-primary);">₹{{ item.taxableAmount + item.cgstAmount + item.sgstAmount | number:'1.2-2' }}</div>
+            </td>
+
+            <!-- Row Remove Button -->
+            <td>
+              <button type="button" class="btn btn-danger" style="padding: 4px 8px; font-size: 0.75rem; background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.2); color:#f87171;" (click)="removeItemRow(i)">🗑️</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Row Addition Action Bar -->
+    <div style="padding: 2px; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-start;">
+      <button type="button" class="btn btn-secondary" style="font-size: 0.82rem; padding: 6px 14px;" (click)="addNewRow()">
+        ➕ Add Medicine Row
+      </button>
+    </div>
+  </div>
+
+  <!-- Calculations Summary Panel -->
+  <div class="totals-layout animate-fade-in">
+    <div class="glass-panel details-helper-box">
+      <h4>💡 Automated Inventory Replenishment</h4>
+      <p style="font-size: 0.82rem; color: var(--text-muted); margin-top: 6px; line-height: 1.4;">
+        Adding this Wholesaler Purchase Invoice will automatically insert or replenish physical batches in active stock inside the active **Inventory** ledger. SKU (Product Code) and Batch matching is automatically mapped, updating wholesale costs, MRP splits, and expiry thresholds in real-time.
+      </p>
+    </div>
+
+    <div class="glass-panel totals-pane">
+      <div class="totals-row">
+        <span>Gross Cost Amount:</span>
+        <span style="font-weight: 500;">₹{{ grossAmount() | number:'1.2-2' }}</span>
+      </div>
+      <div class="totals-row">
+        <span>Wholesaler Discount (Less):</span>
+        <span style="font-weight: 500; color: var(--color-danger);">- ₹{{ discountAmount() | number:'1.2-2' }}</span>
+      </div>
+      <div class="totals-row">
+        <span>Central GST Split (Add CGST):</span>
+        <span style="font-weight: 500; color: var(--color-secondary);">+ ₹{{ cgstAmount() | number:'1.2-2' }}</span>
+      </div>
+      <div class="totals-row">
+        <span>State GST Split (Add SGST):</span>
+        <span style="font-weight: 500; color: var(--color-secondary);">+ ₹{{ sgstAmount() | number:'1.2-2' }}</span>
+      </div>
+      <div *ngIf="roundOff() !== 0" class="totals-row">
+        <span>Round Off:</span>
+        <span style="font-weight: 500; color: var(--color-warning);">{{ roundOff() >= 0 ? '+' : '' }}₹{{ roundOff() | number:'1.2-2' }}</span>
+      </div>
+      <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 8px 0;">
+      <div class="totals-row" style="font-size: 1.15rem; font-weight: 800;">
+        <span>Calculated Total Bill:</span>
+        <span style="color: var(--color-primary);">₹{{ calculatedTotal() | number:'1.2-2' }}</span>
+      </div>
+
+      <button type="submit" class="btn btn-primary" (click)="onSubmitBill($event)" style="width: 100%; margin-top: 16px; font-size: 1rem; padding: 12px;">
+        💾 {{ editingBillId() ? 'Save Changes' : 'Record Wholesaler Bill' }}
+      </button>
+    </div>
+  </div>
+  </div>
+
+  <!-- Historical Purchase Invoices Records Panel -->
+  <div *ngIf="viewMode() === 'draft' || viewMode() === 'saved'" class="glass-panel bill-history-card animate-fade-in">
+    <div class="modal-header" style="border-bottom: 1px solid var(--border-color); padding-bottom: 14px;">
+      <h2>🧾 Purchase Transaction History Ledger ({{ viewMode() === 'draft' ? 'Drafts' : 'Saved' }})</h2>
+    </div>
+
+    <!-- Beautiful Widescreen Search and Date Filter Bar -->
+    <div class="glass-panel" style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); padding: 14px 20px; border-radius: var(--radius-md); margin-top: 16px; margin-bottom: 8px; display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-end;">
+      <!-- Search Input field -->
+      <div style="flex: 2; min-width: 250px; display: flex; flex-direction: column; gap: 4px;">
+        <label style="font-size: 0.72rem; text-transform: uppercase; font-weight: 700; color: var(--color-primary); letter-spacing: 0.05em;">🔍 Search Ledger Details</label>
+        <input type="text" class="form-input" [value]="historySearchQuery()" (input)="historySearchQuery.set($any($event.target).value)" placeholder="Search by Supplier, Bill No, Invoice, Token..." style="width: 100%; height: 36px; padding: 6px 12px; font-size: 0.85rem;">
+      </div>
+      <!-- Start Date filter -->
+      <div style="flex: 1; min-width: 150px; display: flex; flex-direction: column; gap: 4px;">
+        <label style="font-size: 0.72rem; text-transform: uppercase; font-weight: 700; color: var(--color-primary); letter-spacing: 0.05em;">📅 Start Date (From)</label>
+        <input type="date" class="form-input" [value]="historyStartDate()" (input)="historyStartDate.set($any($event.target).value)" style="width: 100%; height: 36px; padding: 6px 12px; font-size: 0.85rem;">
+      </div>
+      <!-- End Date filter -->
+      <div style="flex: 1; min-width: 150px; display: flex; flex-direction: column; gap: 4px;">
+        <label style="font-size: 0.72rem; text-transform: uppercase; font-weight: 700; color: var(--color-primary); letter-spacing: 0.05em;">📅 End Date (To)</label>
+        <input type="date" class="form-input" [value]="historyEndDate()" (input)="historyEndDate.set($any($event.target).value)" style="width: 100%; height: 36px; padding: 6px 12px; font-size: 0.85rem;">
+      </div>
+      <!-- Clear Filters button -->
+      <div>
+        <button type="button" class="btn btn-secondary" (click)="clearHistoryFilters()" style="height: 36px; padding: 0 16px; font-size: 0.82rem; white-space: nowrap; border: 1px solid var(--border-color); display: flex; align-items: center; gap: 6px;">
+          🧹 Reset Filters
+        </button>
+      </div>
+    </div>
+
+    <div *ngIf="loading()" style="display: flex; justify-content: center; align-items: center; height: 150px; font-size: 1rem; color: var(--text-muted);">
+      ⌛ Fetching historical invoice data...
+    </div>
+    <div *ngIf="!loading() && filteredBillHistory().length === 0" style="text-align: center; padding: 40px; color: var(--text-muted);">
+      <span *ngIf="historySearchQuery().trim() || historyStartDate() || historyEndDate()">No matching historical invoices found for the specified search criteria.</span>
+      <span *ngIf="!(historySearchQuery().trim() || historyStartDate() || historyEndDate())">
+        <span *ngIf="viewMode() === 'draft'">No mismatched draft purchase invoices found. All recorded entries are balanced.</span>
+        <span *ngIf="viewMode() === 'saved'">No successfully matching purchase invoices found.</span>
+      </span>
+    </div>
+
+    <div *ngIf="!loading() && filteredBillHistory().length > 0" class="table-container" style="margin-top: 14px;">
+      <table class="bill-table" style="font-size: 0.82rem;">
+        <thead>
+          <tr>
+            <th>Unique Bill No</th>
+            <th>Token No</th>
+            <th>Invoice Reference</th>
+            <th>Supplier Name</th>
+            <th>Net Expected (₹)</th>
+            <th>Calculated Total (₹)</th>
+            <th>Discounts (₹)</th>
+            <th>GST Splits (₹)</th>
+            <th>Record Date</th>
+            <th style="width: 85px; text-align: center;">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let bill of filteredBillHistory()">
+            <td style="font-weight: 700; color: var(--color-primary);">{{ bill.billNumber }}</td>
+            <td style="font-weight: 700; color: var(--color-secondary);">{{ bill.tokenNumber || '—' }}</td>
+            <td style="font-weight: 600;">{{ bill.invoiceNumber }}</td>
+            <td>{{ bill.supplierName }}</td>
+            <td style="font-weight: 600;">₹{{ bill.netAmount | number:'1.2-2' }}</td>
+            <td style="font-weight: 700; color: var(--color-secondary);">₹{{ bill.totalAmount | number:'1.2-2' }}</td>
+            <td style="color: var(--color-danger);">-₹{{ bill.discountAmount | number:'1.2-2' }}</td>
+            <td>CGST: ₹{{ bill.cgstAmount | number:'1.2-2' }} | SGST: ₹{{ bill.sgstAmount | number:'1.2-2' }}</td>
+            <td>{{ bill.purchaseDate | date:'medium' }}</td>
+            <td style="text-align: center;">
+              <button type="button" class="btn btn-secondary" style="font-size: 0.72rem; padding: 4px 8px; background: rgba(20,184,166,0.1); border: 1px solid rgba(20,184,166,0.2); color: var(--color-primary);" (click)="onEditBill(bill)">
+                ✏️ Edit
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  </div>
+
+<!-- Net Amount Mismatch Warning Alert frosted glass modal -->
+<div *ngIf="isMismatchModalOpen()" class="modal-backdrop">
+  <div class="glass-panel modal-card" style="width: 480px; text-align: center; border: 1px solid var(--color-warning);">
+    <div style="font-size: 3rem; color: var(--color-warning); margin-bottom: 8px;">⚠️</div>
+    <h2 style="color: var(--color-warning);">Invoice Total Mismatch Warning</h2>
+    <p style="font-size: 0.88rem; color: var(--text-muted); margin-top: 8px; line-height: 1.5;">
+      The calculated total bill amount does **not** match the expected wholesaler Net Amount entered in the header.
+    </p>
+
+    <div style="margin: 20px 0; padding: 14px; background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: var(--radius-sm); display: flex; flex-direction: column; gap: 8px; font-size: 0.85rem;">
+      <div style="display: flex; justify-content: space-between;">
+        <span>Expected Net Amount:</span>
+        <span style="font-weight: 700; color: var(--color-secondary);">₹{{ netAmount() | number:'1.2-2' }}</span>
+      </div>
+      <div style="display: flex; justify-content: space-between;">
+        <span>Calculated Total Cost:</span>
+        <span style="font-weight: 700; color: var(--color-primary);">₹{{ calculatedTotal() | number:'1.2-2' }}</span>
+      </div>
+      <div style="display: flex; justify-content: space-between; border-top: 1px solid var(--border-color); padding-top: 6px;">
+        <span>Variance / Mismatch:</span>
+        <span style="font-weight: 700; color: var(--color-danger);">₹{{ calculatedTotal() - netAmount() | number:'1.2-2' }}</span>
+      </div>
+    </div>
+
+    <p style="font-size: 0.78rem; color: var(--text-muted); margin-bottom: 20px;">
+      *Confirming will still save this transaction and automatically replenish the physical inventory.
+    </p>
+
+    <div class="modal-footer" style="justify-content: center; gap: 14px;">
+      <button type="button" class="btn btn-secondary" (click)="isMismatchModalOpen.set(false)">
+        🔙 Go Back & Edit
+      </button>
+      <button type="button" class="btn btn-primary" (click)="saveBill()" style="background: var(--color-warning); color: #000;">
+        ⚠️ Confirm & Save anyway
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Medicine Master On-The-Fly Edit/Register Modal -->
+<div *ngIf="isMasterEditModalOpen()" class="modal-backdrop animate-fade-in">
+  <form (submit)="onSaveMasterEdit($event)" class="glass-panel modal-card" style="border: 1px solid var(--color-primary); width: 950px; max-width: 95vw;">
+    <div class="modal-header" style="border-bottom: 1px solid var(--border-color); padding-bottom: 14px; margin-bottom: 14px;">
+      <h2 style="color: var(--color-primary); display: flex; align-items: center; gap: 8px; margin: 0;">
+        {{ editingMasterModel() ? '✏️ Modify Registered Product' : '➕ Register New Static Product' }}
+      </h2>
+      <button type="button" class="btn-close" (click)="onCloseMasterEditModal()">×</button>
+    </div>
+
+    <div style="font-size: 0.8rem; color: var(--text-muted); line-height: 1.4; border-bottom: 1px dashed var(--border-color); padding-bottom: 10px; margin-bottom: 14px; text-align: left;">
+      {{ editingMasterModel() ? '*Editing these static directory details will instantly sync the main Medicine Master directory and automatically select/autofill the corrected record in your active invoice row.' : '*Registering this product will instantly write a new static profile to the Medicine Master Catalog and auto-fill your active invoice row details.' }}
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 14px;">
+      <!-- Unified 3-Column Symmetrical Grid Layout (4x3 Grid Flow) -->
+      <div class="modal-grid-3-equal" style="gap: 16px 20px; text-align: left;">
+        <!-- Row 1: Primary Identifiers -->
+        <div class="input-group" style="margin-bottom: 0;">
+          <label class="input-label">Product Name *</label>
+          <input type="text" class="form-input" [value]="masterProductName()" (input)="masterProductName.set($any($event.target).value)" placeholder="e.g. Paracetamol 500mg" required>
+        </div>
+        <div class="input-group" style="margin-bottom: 0;">
+          <label class="input-label">Generic formulation *</label>
+          <input type="text" class="form-input" [value]="masterComposition()" (input)="masterComposition.set($any($event.target).value)" placeholder="e.g. Paracetamol IP 500mg" required>
+        </div>
+        <div class="input-group" style="margin-bottom: 0;">
+          <label class="input-label">Product Code (SKU) *</label>
+          <input type="text" class="form-input" [value]="masterProductCode()" (input)="masterProductCode.set($any($event.target).value)" placeholder="e.g. MED-PARA-500" required [disabled]="editingMasterModel() !== null" [style.opacity]="editingMasterModel() !== null ? 0.6 : 1" [style.cursor]="editingMasterModel() !== null ? 'not-allowed' : 'text'">
+        </div>
+
+        <!-- Row 2: Secondary Attributes -->
+        <div class="input-group" style="margin-bottom: 0;">
+          <label class="input-label">Company (Manufacturer) *</label>
+          <input type="text" class="form-input" [value]="masterCompanyName()" (input)="masterCompanyName.set($any($event.target).value)" placeholder="e.g. Cipla Ltd" required>
+        </div>
+        <div class="input-group" style="margin-bottom: 0;">
+          <label class="input-label">Category *</label>
+          <select class="form-input" [value]="masterCategory()" (change)="masterCategory.set($any($event.target).value)">
+            <option value="medicine">Medicines</option>
+            <option value="cosmetics">Cosmetics / OTC</option>
+            <option value="food">Food / Supplements</option>
+            <option value="others">Others</option>
+          </select>
+        </div>
+        <div class="input-group" style="margin-bottom: 0;">
+          <label class="input-label">Product Pack size (Quantity) *</label>
+          <input type="text" class="form-input" [value]="masterProductQuantity()" (input)="masterProductQuantity.set($any($event.target).value)" placeholder="e.g. 10 Tablets/Strip" required>
+        </div>
+
+        <!-- Row 3: Location and Compliance -->
+        <div class="input-group" style="margin-bottom: 0;">
+          <label class="input-label">HSN Code *</label>
+          <select class="form-input" [value]="masterHsnCode()" (change)="onMasterHsnChange($any($event.target).value)">
+            <option value="3004">3004 (Medicines/Formulations - 12%)</option>
+            <option value="3002">3002 (Vaccines/Blood - 5%)</option>
+            <option value="9021">9021 (Orthopaedic/Stents - 5%)</option>
+            <option value="3003">3003 (Medicaments Mixed - 12%)</option>
+            <option value="3005">3005 (Bandages/Dressings - 12%)</option>
+            <option value="3006">3006 (Surgical Sutures - 12%)</option>
+            <option value="9018">9018 (Surgical Instruments - 12%)</option>
+            <option value="3304">3304 (Cosmetics/Skin-care - 18%)</option>
+            <option value="2106">2106 (Protein Supplements - 18%)</option>
+            <option value="3808">3808 (Sanitizers/Disinfectants - 18%)</option>
+            <option value="4015">4015 (Surgical Gloves - 18%)</option>
+            <option value="9025">9025 (Thermometers - 18%)</option>
+            <option value="9027">9027 (Diagnostic/BP Monitors - 18%)</option>
+            <option value="30066030">30066030 (Oral Contraceptive - 0%)</option>
+            <option value="others">Other/Custom (General Slab - 12%)</option>
+          </select>
+        </div>
+        <div class="input-group" style="margin-bottom: 0;">
+          <label class="input-label">Product Type *</label>
+          <select class="form-input" [value]="masterProductType()" (change)="masterProductType.set($any($event.target).value)">
+            <option value="Tablet">Tablet</option>
+            <option value="Capsule">Capsule</option>
+            <option value="Syrup">Syrup</option>
+            <option value="Injection">Injection</option>
+            <option value="Ointment">Ointment</option>
+            <option value="Powder">Powder</option>
+            <option value="Others">Others</option>
+          </select>
+        </div>
+        <div class="input-group" style="margin-bottom: 0;">
+          <label class="input-label">Rack Location</label>
+          <input type="text" class="form-input" [value]="masterRackLocation()" (input)="masterRackLocation.set($any($event.target).value)" placeholder="e.g. Rack-A1 or Fridge-1">
+        </div>
+
+        <!-- Row 4: Re-order Limit & Symmetrical Tax Splits -->
+        <div class="input-group" style="margin-bottom: 0;">
+          <label class="input-label">Re-order Limit</label>
+          <input type="number" class="form-input" [value]="masterReorderLevel() !== null ? masterReorderLevel() : ''" (input)="masterReorderLevel.set($any($event.target).value ? +$any($event.target).value : null)" placeholder="e.g. 10">
+        </div>
+        <div class="input-group" style="margin-bottom: 0;">
+          <label class="input-label">CGST Split *</label>
+          <input type="number" step="0.1" class="form-input" [value]="masterCgst()" (input)="masterCgst.set(+$any($event.target).value)" min="0" max="14" required>
+        </div>
+        <div class="input-group" style="margin-bottom: 0;">
+          <label class="input-label">SGST Split *</label>
+          <input type="number" step="0.1" class="form-input" [value]="masterSgst()" (input)="masterSgst.set(+$any($event.target).value)" min="0" max="14" required>
+        </div>
+      </div>
+
+      <div class="modal-footer" style="margin-top: 10px; padding-top: 14px;">
+        <button type="button" class="btn btn-secondary" (click)="onCloseMasterEditModal()">Cancel</button>
+        <button type="submit" class="btn btn-primary">
+          {{ editingMasterModel() ? '💾 Save Master Details & Select' : '➕ Register & Select Product' }}
+        </button>
+      </div>
+    </div>
+  </form>
+</div>
+
+<!-- Widescreen Frosted Glass Edit Purchase Invoice Modal Popup -->
+<div *ngIf="isEditModalOpen()" class="modal-backdrop animate-fade-in" style="z-index: 1000; overflow-y: auto; padding: 15px 0; display: block;">
+  <div class="glass-panel modal-card animate-fade-in" style="width: 1540px; max-width: 98vw; max-height: none !important; margin: 0 auto; padding: 20px; border: 1px solid var(--color-primary); box-shadow: var(--shadow-lg); text-align: left; overflow: visible !important;">
+    
+    <div class="modal-header" style="border-bottom: 1px solid var(--border-color); padding-bottom: 10px; margin-bottom: 15px;">
+      <h2 style="color: var(--color-primary); display: flex; align-items: center; gap: 8px; margin: 0;">
+        ✏️ Edit Wholesaler Purchase Invoice
+        <span *ngIf="editingTokenNumber()" style="font-size: 1.1rem; color: var(--color-secondary); font-weight: 600; margin-left: 8px;">
+          (Token No: {{ editingTokenNumber() }})
+        </span>
+      </h2>
+      <button type="button" class="btn-close" (click)="onCloseEditModal()">×</button>
+    </div>
+
+    <!-- Header parameters -->
+    <form (submit)="onSubmitBill($event)" class="bill-header-card" style="background: rgba(255,255,255,0.01); border: 1px solid var(--border-color); padding: 12px; border-radius: var(--radius-sm); margin-bottom: 15px;">
+      <div class="modal-grid-4-equal">
+        <div class="input-group" style="position: relative;">
+          <label class="input-label">Select Supplier *</label>
+          <div style="position: relative; width: 100%;">
+            <input
+              id="modal-header-supplier-search"
+              type="text"
+              class="form-input"
+              placeholder="Type to search wholesaler..."
+              [value]="selectedSupplier() || supplierSearchQuery()"
+              (input)="onSupplierSearch($any($event.target).value)"
+              (focus)="supplierDropdownOpen.set(true); supplierSearchQuery.set(selectedSupplier()); activeSupplierItemIndex.set(0)"
+              (blur)="closeSupplierDropdown()"
+              (keydown.enter)="onSupplierSearchKeyDown($event, 'enter')"
+              (keydown.escape)="onSupplierSearchKeyDown($event, 'escape')"
+              (keydown.arrowdown)="onSupplierSearchKeyDown($event, 'down')"
+              (keydown.arrowup)="onSupplierSearchKeyDown($event, 'up')"
+              autocomplete="off"
+              required
+              style="width: 100%; padding-right: 32px;"
+            />
+            <!-- Autocomplete Dropdown List for Suppliers -->
+            <div *ngIf="supplierDropdownOpen() && filteredSuppliers().length > 0" 
+                 class="placed-orders-dropdown"
+                 style="max-height: 200px; margin-top: 4px; width: 100%;">
+              <div *ngFor="let sup of filteredSuppliers(); let idx = index" 
+                   (mousedown)="selectSupplier(sup)"
+                   class="autocomplete-row-item" 
+                   [class.active-item]="idx === activeSupplierItemIndex()"
+                   style="padding: 8px 12px; cursor: pointer; border-bottom: 1px dashed var(--border-color);">
+                <span style="font-weight: 700; font-size: 0.82rem; color: var(--text-heading);">{{ sup.name }}</span>
+                <span *ngIf="sup.phone" style="font-size: 0.7rem; color: var(--text-muted); float: right;">📞 {{ sup.phone }}</span>
+              </div>
+            </div>
+            <!-- Clear Button -->
+            <button
+              *ngIf="selectedSupplier()"
+              type="button"
+              class="btn-clear-pill"
+              (click)="clearSupplierSelection()"
+              style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 1.1rem; padding: 0; line-height: 1;"
+            >
+              ×
+            </button>
+          </div>
+        </div>
+
+        <div class="input-group">
+          <label class="input-label">Supplier Invoice No *</label>
+          <input id="modal-header-invoiceNo" type="text" class="form-input" [value]="invoiceNo()" (input)="invoiceNo.set($any($event.target).value)" (keydown.enter)="onHeaderEnter($event, 'invoiceNo')" (keydown.escape)="onHeaderEscape($event, 'invoiceNo')" placeholder="e.g. GST-9988-26" required>
+        </div>
+
+        <div class="input-group">
+          <label class="input-label">Supplier Invoice Date *</label>
+          <input id="modal-header-invoiceDate" type="date" class="form-input" [value]="invoiceDate()" (input)="invoiceDate.set($any($event.target).value)" (keydown.enter)="onHeaderEnter($event, 'invoiceDate')" (keydown.escape)="onHeaderEscape($event, 'invoiceDate')" required>
+        </div>
+
+        <div class="input-group">
+          <label class="input-label">Net Amount (₹) *</label>
+          <input id="modal-header-netAmount" type="number" step="0.01" class="form-input" [value]="netAmount()" (input)="netAmount.set(+$any($event.target).value)" (keydown.enter)="onHeaderEnter($event, 'netAmount')" (keydown.escape)="onHeaderEscape($event, 'netAmount')" placeholder="Expected final bill total" required style="font-weight: 700; color: var(--color-secondary);">
+        </div>
+      </div>
+    </form>
+
+    <!-- Multi-Item Table Grid inside Modal -->
+    <div class="bill-table-card animate-fade-in" style="background: rgba(255,255,255,0.01); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 8px 12px; margin-bottom: 15px;">
+      <div class="table-container">
+        <table class="bill-table">
+          <thead>
+            <tr>
+              <th style="width: 280px;"> Search Medicine Formulation *</th>
+              <th style="width: 100px;">Quatity *</th>
+              <th style="width: 100px;">Free</th>
+              <th style="width: 100px;">Batch No *</th>
+              <th style="width: 110px;">Expiry Date *</th>
+              <th style="width: 100px;">Reorder (Strips/Packs)</th>
+              <th style="width: 110px;">Rack Location</th>
+              <th style="width: 100px;">MRP (₹) *</th>
+              <th style="width: 100px;">Rate (₹) *</th>
+              <th style="width: 80px;">Disc %</th>
+              <th style="width: 90px;">Taxable</th>
+              <th style="width: 80px;">GST %</th>
+              <th style="width: 100px;">Total (₹)</th>
+              <th style="width: 50px;">Act</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let item of items(); let i = index; trackBy: trackItemBy">
+              <!-- Medicine Search Autocomplete -->
+              <td style="position: relative;">
+                <div *ngIf="item.productCode && !rowSearchMode()[i]" class="selected-product-pill">
+                  <span class="product-pill-name">{{ item.productName }}</span>
+                  <span class="product-pill-sku">SKU: {{ item.productCode }}</span>
+                  <button type="button" class="btn-clear-pill" (click)="onRowInputChange(i, 'productCode', '')">×</button>
+                </div>
+                <div *ngIf="!item.productCode || rowSearchMode()[i]" style="position: relative;">
+                  <input [id]="'modal-search-input-' + i" type="text" class="form-input table-search" [value]="rowSearchQueries()[i]" 
+                         (input)="onSearchMasterRow(i, $any($event.target).value)" 
+                         (keydown.arrowdown)="onSearchKeyDown($event, i, 'down')"
+                         (keydown.arrowup)="onSearchKeyDown($event, i, 'up')"
+                         (keydown.enter)="onSearchKeyDown($event, i, 'enter')"
+                         (keydown.escape)="onSearchKeyDown($event, i, 'escape')"
+                         placeholder="Type product name or SKU...">
+                  <!-- Autocomplete Dropdown List -->
+                  <div *ngIf="rowDropdownOpen()[i]" class="row-autocomplete-dropdown" style="z-index: 1050;">
+                    <div *ngIf="getFilteredMastersRow(i).length > 0">
+                      <div *ngFor="let master of getFilteredMastersRow(i); let itemIndex = index" class="autocomplete-row-item" [class.active-item]="itemIndex === activeListItemIndex()" (click)="onSelectMasterRow(i, master)" style="display: flex; justify-content: space-between; align-items: center; gap: 12px;">
+                        <div>
+                          <div style="font-weight: 700; font-size: 0.8rem; color: var(--text-heading);">{{ master.productName }}</div>
+                          <div style="font-size: 0.65rem; color: var(--text-muted); display: flex; gap: 6px; margin-top: 2px;">
+                            <span>SKU: {{ master.productCode }}</span>
+                            <span>| Comp: {{ master.composition }}</span>
+                            <span>| Tax: {{ master.cgst + master.sgst }}%</span>
+                          </div>
+                        </div>
+                        <button type="button" class="btn-edit-master" (click)="onOpenEditMasterModal(i, master, $event)" title="Edit master details for this medicine">
+                          ✏️ Edit
+                        </button>
+                      </div>
+                    </div>
+                    <div *ngIf="getFilteredMastersRow(i).length === 0 && rowSearchQueries()[i].trim().length > 0" style="padding: 14px; text-align: center; display: flex; flex-direction: column; gap: 8px; background: var(--bg-sidebar);">
+                      <div style="font-size: 0.78rem; color: var(--text-muted);">
+                        No matching product found in directory.
+                      </div>
+                      <button type="button" class="btn btn-primary" (click)="onOpenAddMasterModal(i, rowSearchQueries()[i], $event)" style="font-size: 0.72rem; padding: 6px 10px; width: 100%; display: flex; align-items: center; justify-content: center; gap: 4px; background: var(--color-primary); color: #000; border: none; font-weight: 700; border-radius: var(--radius-sm); cursor: pointer;">
+                        ➕ Register "{{ rowSearchQueries()[i] }}"
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </td>
+
+              <!-- Quantity -->
+              <td>
+                <input [id]="'modal-qty-input-' + i" type="number" step="1" class="form-input" min="1" [value]="item.quantity" (input)="onRowInputChange(i, 'quantity', $any($event.target).value)" (keydown.enter)="onInputEnter($event, i, 'qty')" (keydown.escape)="onInputEscape($event, i, 'qty')" required>
+              </td>
+
+              <!-- Free Units -->
+              <td>
+                <input [id]="'modal-free-input-' + i" type="number" step="1" class="form-input" min="0" [value]="item.loose" (input)="onRowInputChange(i, 'loose', $any($event.target).value)" (keydown.enter)="onInputEnter($event, i, 'free')" (keydown.escape)="onInputEscape($event, i, 'free')">
+              </td>
+
+              <!-- Batch Number with Autocomplete (modal) -->
+              <td style="position: relative;">
+                <input [id]="'modal-batch-input-' + i" type="text" class="form-input"
+                  [value]="item.batchNumber"
+                  (input)="onBatchInputChange(i, $any($event.target).value)"
+                  (keydown.arrowdown)="onBatchKeyDown($event, i, 'down')"
+                  (keydown.arrowup)="onBatchKeyDown($event, i, 'up')"
+                  (keydown.enter)="onBatchKeyDown($event, i, 'enter')"
+                  (keydown.escape)="onBatchKeyDown($event, i, 'escape')"
+                  (blur)="closeBatchDropdown(i)"
+                  placeholder="B-REF" required
+                  autocomplete="off">
+                <!-- Batch Dropdown -->
+                <div *ngIf="rowBatchDropdownOpen()[i] && getFilteredBatchOptions(i).length > 0"
+                  style="position: absolute; top: 100%; left: 0; right: 0; z-index: 1100;
+                         background: var(--bg-surface, #1e2a3a); border: 1px solid var(--color-primary);
+                         border-radius: 6px; max-height: 180px; overflow-y: auto;
+                         box-shadow: 0 8px 24px rgba(0,0,0,0.35); min-width: 220px;">
+                  <div *ngFor="let opt of getFilteredBatchOptions(i); let bi = index"
+                    (mousedown)="onSelectBatch(i, opt)"
+                    [style.background]="bi === activeBatchItemIndex() ? 'rgba(20,184,166,0.18)' : 'transparent'"
+                    style="padding: 7px 12px; cursor: pointer; font-size: 0.82rem;
+                           border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; flex-direction: column; gap: 2px;">
+                    <span style="font-weight: 700; color: var(--color-primary, #14b8a6);">{{ opt.batchNumber }}</span>
+                    <span style="font-size: 0.72rem; color: var(--text-muted, #94a3b8);">
+                      Exp: {{ formatDateToMMYYYY(opt.expiryDate) }} &nbsp;|&nbsp; MRP: ₹{{ opt.mrp }} &nbsp;|&nbsp; Rate: ₹{{ opt.rate }}
+                    </span>
+                  </div>
+                </div>
+              </td>
+
+              <!-- Expiry Date -->
+              <td>
+                <input [id]="'modal-expiry-input-' + i" type="text" class="form-input" [value]="formatDateToMMYYYY(item.expiryDate)" (input)="onRowInputChange(i, 'expiryDate', $any($event.target).value, $event)" (blur)="checkExpiryAlert(i)" (keydown.enter)="onInputEnter($event, i, 'expiry')" (keydown.escape)="onInputEscape($event, i, 'expiry')" placeholder="MM/YYYY" maxlength="7" required>
+              </td>
+
+              <!-- Re-order Limit -->
+              <td>
+                <input [id]="'modal-reorder-input-' + i" type="number" step="1" class="form-input" min="1" [value]="item.reorderLevel !== undefined && item.reorderLevel !== null ? item.reorderLevel : ''" (input)="onRowInputChange(i, 'reorderLevel', $any($event.target).value)" (keydown.enter)="onInputEnter($event, i, 'reorder')" (keydown.escape)="onInputEscape($event, i, 'reorder')">
+              </td>
+
+              <!-- Rack Location -->
+              <td>
+                <input [id]="'modal-rack-input-' + i" type="text" class="form-input" [value]="item.rackLocation" (input)="onRowInputChange(i, 'rackLocation', $any($event.target).value)" (keydown.enter)="onInputEnter($event, i, 'rack')" (keydown.escape)="onInputEscape($event, i, 'rack')" placeholder="e.g. A-12">
+              </td>
+
+              <!-- MRP -->
+              <td>
+                <input [id]="'modal-mrp-input-' + i" type="number" step="any" class="form-input" min="0" [value]="item.mrp" (input)="onRowInputChange(i, 'mrp', $any($event.target).value)" (keydown.enter)="onInputEnter($event, i, 'mrp')" (keydown.escape)="onInputEscape($event, i, 'mrp')" placeholder="MRP" required>
+              </td>
+
+              <!-- Purchase Rate -->
+              <td>
+                <input [id]="'modal-rate-input-' + i" type="number" step="any" class="form-input" min="0" [value]="item.rate" (input)="onRowInputChange(i, 'rate', $any($event.target).value)" (keydown.enter)="onInputEnter($event, i, 'rate')" (keydown.escape)="onInputEscape($event, i, 'rate')" placeholder="Cost" required>
+              </td>
+
+              <!-- Discount % -->
+              <td>
+                <input [id]="'modal-discount-input-' + i" type="number" step="any" class="form-input" min="0" max="100" [value]="item.discountPercentage" (input)="onRowInputChange(i, 'discountPercentage', $any($event.target).value)" (keydown.enter)="onInputEnter($event, i, 'discount')" (keydown.escape)="onInputEscape($event, i, 'discount')">
+              </td>
+
+              <!-- Taxable Amount Display -->
+              <td>
+                <div style="font-weight: 500; font-size: 0.82rem;">₹{{ item.taxableAmount | number:'1.2-2' }}</div>
+              </td>
+
+              <!-- GST Slab Display -->
+              <td>
+                <div style="display: flex; flex-direction: column; gap: 4px; min-width: 80px;">
+                  <div style="display: flex; align-items: center; gap: 4px;">
+                    <span style="font-size: 0.65rem; color: var(--text-muted); width: 14px; text-align: left;">C:</span>
+                    <input [id]="'modal-cgst-input-' + i" type="number" step="0.1" class="form-input" style="padding: 2px 4px!important; height: 22px!important; font-size: 0.75rem!important; text-align: right; width: 44px;" [value]="item.cgstRate" (input)="onRowInputChange(i, 'cgstRate', $any($event.target).value)" (keydown.enter)="onInputEnter($event, i, 'cgst')" (keydown.escape)="onInputEscape($event, i, 'cgst')">
+                    <span style="font-size: 0.65rem; color: var(--text-muted);">%</span>
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 4px;">
+                    <span style="font-size: 0.65rem; color: var(--text-muted); width: 14px; text-align: left;">S:</span>
+                    <input [id]="'modal-sgst-input-' + i" type="number" step="0.1" class="form-input" style="padding: 2px 4px!important; height: 22px!important; font-size: 0.75rem!important; text-align: right; width: 44px;" [value]="item.sgstRate" (input)="onRowInputChange(i, 'sgstRate', $any($event.target).value)" (keydown.enter)="onInputEnter($event, i, 'sgst')" (keydown.escape)="onInputEscape($event, i, 'sgst')">
+                    <span style="font-size: 0.65rem; color: var(--text-muted);">%</span>
+                  </div>
+                </div>
+              </td>
+
+              <!-- Row Calculated Total Display -->
+              <td>
+                <div style="font-weight: 700; font-size: 0.88rem; color: var(--color-primary);">₹{{ item.taxableAmount + item.cgstAmount + item.sgstAmount | number:'1.2-2' }}</div>
+              </td>
+
+              <!-- Row Remove Button -->
+              <td>
+                <button type="button" class="btn btn-danger" style="padding: 4px 8px; font-size: 0.75rem; background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.2); color:#f87171;" (click)="removeItemRow(i)">🗑️</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Add row control inside modal -->
+      <div style="padding: 12px; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-start;">
+        <button type="button" class="btn btn-secondary" style="font-size: 0.82rem; padding: 6px 14px;" (click)="addNewRow()">
+          ➕ Add Medicine Row
+        </button>
+      </div>
+    </div>
+
+    <!-- Calculations Summary Panel inside Modal -->
+    <div class="totals-layout animate-fade-in" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+      <div class="details-helper-box" style="border: 1px dashed var(--border-color); padding: 16px; border-radius: var(--radius-sm); display: flex; flex-direction: column; justify-content: center;">
+        <h4 style="margin: 0; color: var(--color-primary);">💡 Active Stock Reconciliation</h4>
+        <p style="font-size: 0.82rem; color: var(--text-muted); margin-top: 8px; line-height: 1.4; margin-bottom: 0;">
+          Updating this Wholesaler Purchase Invoice will automatically run active stock calculations, adjusting stock levels in the active **Inventory** ledger.
+        </p>
+      </div>
+
+      <div class="totals-pane" style="border: 1px solid var(--border-color); padding: 16px; border-radius: var(--radius-sm); background: rgba(255,255,255,0.01);">
+        <div class="totals-row" style="display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 0.88rem;">
+          <span>Gross Cost Amount:</span>
+          <span style="font-weight: 500;">₹{{ grossAmount() | number:'1.2-2' }}</span>
+        </div>
+        <div class="totals-row" style="display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 0.88rem;">
+          <span>Wholesaler Discount (Less):</span>
+          <span style="font-weight: 500; color: var(--color-danger);">- ₹{{ discountAmount() | number:'1.2-2' }}</span>
+        </div>
+        <div class="totals-row" style="display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 0.88rem;">
+          <span>Central GST Split (Add CGST):</span>
+          <span style="font-weight: 500; color: var(--color-secondary);">+ ₹{{ cgstAmount() | number:'1.2-2' }}</span>
+        </div>
+        <div class="totals-row" style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 0.88rem;">
+          <span>State GST Split (Add SGST):</span>
+          <span style="font-weight: 500; color: var(--color-secondary);">+ ₹{{ sgstAmount() | number:'1.2-2' }}</span>
+        </div>
+        <div *ngIf="roundOff() !== 0" class="totals-row" style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 0.88rem;">
+          <span>Round Off:</span>
+          <span style="font-weight: 500; color: var(--color-warning);">{{ roundOff() >= 0 ? '+' : '' }}₹{{ roundOff() | number:'1.2-2' }}</span>
+        </div>
+        <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 8px 0;">
+        <div class="totals-row" style="display: flex; justify-content: space-between; font-size: 1.15rem; font-weight: 800; margin-bottom: 14px;">
+          <span>Calculated Total Bill:</span>
+          <span style="color: var(--color-primary);">₹{{ calculatedTotal() | number:'1.2-2' }}</span>
+        </div>
+
+        <div style="display: flex; gap: 14px;">
+          <button type="button" class="btn btn-secondary" (click)="onCloseEditModal()" style="flex: 1; padding: 10px; font-size: 0.9rem;">
+            Cancel
+          </button>
+          <button type="submit" class="btn btn-primary" (click)="onSubmitBill($event)" style="flex: 2; padding: 10px; font-size: 0.9rem; font-weight: 700;">
+            💾 Save Changes
+          </button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+

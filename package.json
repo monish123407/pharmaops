@@ -1,0 +1,84 @@
+{
+  "name": "arpita-medical",
+  "version": "1.0.0",
+  "description": "Arpita Medical Pharmacy Retail Operations Desktop Application",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build:angular": "cd frontend && npx ng build --configuration=production",
+    "build:backend": "cd backend && ./mvnw clean package -DskipTests",
+    "electron:build": "electron-builder --win --x64",
+    "create-installer": "npm run build:backend && npm run build:angular && npm run electron:build",
+    "desktop:build": "electron-builder --win"
+  },
+  "author": "Arpita Medical",
+  "license": "ISC",
+  "devDependencies": {
+    "electron": "^30.0.9",
+    "electron-builder": "^24.13.3"
+  },
+  "dependencies": {
+    "electron-updater": "^6.3.9"
+  },
+  "build": {
+    "appId": "com.arpitamedical.pharmacy",
+    "productName": "Arpita Medical",
+    "copyright": "Copyright © 2026 Arpita Medical",
+    "compression": "normal",
+    "artifactName": "ArpitaMedical-Setup-${version}.${ext}",
+    "directories": {
+      "output": "dist-desktop"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "frontend/dist/frontend/browser/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "backend/target/backend-0.0.1-SNAPSHOT.jar",
+        "to": "backend.jar"
+      },
+      {
+        "from": "jre",
+        "to": "jre",
+        "filter": ["**/*"]
+      }
+    ],
+    "win": {
+      "icon": "build/icon.ico",
+      "signAndEditExecutable": false,
+      "publisherName": "Arpita Medical",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": true,
+      "allowElevation": true,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": "always",
+      "createStartMenuShortcut": true,
+      "shortcutName": "Arpita Medical",
+      "uninstallDisplayName": "Arpita Medical Pharmacy Suite",
+      "deleteAppDataOnUninstall": false,
+      "displayLanguageSelector": false,
+      "packElevateHelper": true,
+      "include": "build/installer.nsh",
+      "differentialPackage": false
+    },
+    "publish": [
+      {
+        "provider": "generic",
+        "url": "https://update.arpitamedical.com/releases/",
+        "channel": "latest"
+      }
+    ]
+  }
+}

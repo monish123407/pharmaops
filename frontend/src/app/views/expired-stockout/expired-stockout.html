@@ -1,0 +1,220 @@
+<div class="expired-stockout-container">
+  
+  <!-- Wholesaler Search Selection Card -->
+  <div class="glass-card search-card">
+    <div class="card-header-sleek">
+      <span class="pulse-indicator red-glow"></span>
+      <h3>1. Select Supplier / Wholesaler</h3>
+      <p class="subtitle-text">Identify and target expired medicine batches by their purchasing wholesaler</p>
+    </div>
+
+    <div class="search-form-group">
+      <div class="search-input-wrapper">
+        <span class="search-icon">🔍</span>
+        <input 
+          type="text" 
+          class="form-control searchable-input" 
+          placeholder="Search and select wholesaler..."
+          [value]="selectedWholesaler() ? selectedWholesaler()!.name : wholesalerQuery()"
+          (input)="onWholesalerQueryChange($any($event.target).value)"
+          (focus)="onWholesalerFocus()"
+          (blur)="closeWholesalerDropdown()"
+          (keydown.enter)="onWholesalerKeyDown($event, 'enter')"
+          (keydown.escape)="onWholesalerKeyDown($event, 'escape')"
+          (keydown.arrowdown)="onWholesalerKeyDown($event, 'down')"
+          (keydown.arrowup)="onWholesalerKeyDown($event, 'up')"
+          autocomplete="off"
+        />
+        @if (selectedWholesaler()) {
+          <button class="clear-pill-btn" (click)="clearWholesaler()" title="Clear Selection">×</button>
+        }
+      </div>
+
+      <!-- Autocomplete Dropdown List -->
+      @if (wholesalerDropdownOpen() && filteredWholesalers().length > 0) {
+        <div class="autocomplete-dropdown" (mousedown)="$event.preventDefault()">
+          @for (supplier of filteredWholesalers(); track supplier.id; let idx = $index) {
+            <div class="dropdown-item" 
+                 [class.active-item]="idx === activeWholesalerItemIndex()"
+                 (mousedown)="selectWholesaler(supplier)">
+              <div class="item-main-details">
+                <span class="item-name">{{ supplier.name }}</span>
+                <span class="item-meta"> · Contact: {{ supplier.contactName }}</span>
+              </div>
+              <div class="item-sub-details">
+                <span>GSTIN: {{ supplier.gstn }}</span>
+                <span> · Phone: {{ supplier.phone }}</span>
+              </div>
+            </div>
+          }
+        </div>
+      }
+    </div>
+  </div>
+
+  @if (selectedWholesaler()) {
+    <div class="workspace-grid">
+      <!-- Expired Batches Table Card -->
+      <div class="glass-card table-card">
+        <div class="card-header-sleek">
+          <div class="title-with-badge">
+            <h3>2. Expired Medicine Batches</h3>
+            <span class="count-badge red-badge">{{ expiredItems().length }} expired</span>
+          </div>
+          <p class="subtitle-text">Displaying expired stock for <strong>{{ selectedWholesaler()?.name }}</strong> matched in Purchase bills</p>
+        </div>
+
+        @if (loading()) {
+          <div class="loading-wrapper">
+            <div class="spinner"></div>
+            <p>Scanning purchase ledgers for expired batches...</p>
+          </div>
+        } @else if (expiredItems().length === 0) {
+          <div class="empty-state">
+            <span class="empty-icon">🎉</span>
+            <h4>No Expired Batches Found</h4>
+            <p>Excellent! There are no expired stock batches logged under purchase invoices for this wholesaler.</p>
+          </div>
+        } @else {
+          <div class="table-responsive">
+            <table class="widescreen-table">
+              <thead>
+                <tr>
+                  <th width="50" class="center-text">
+                    <label class="custom-checkbox">
+                      <input 
+                        type="checkbox" 
+                        [checked]="isAllSelected()"
+                        (change)="toggleAllSelected()"
+                      />
+                      <span class="checkmark"></span>
+                    </label>
+                  </th>
+                  <th>Medicine Details</th>
+                  <th width="120">Batch No</th>
+                  <th width="120">Expiry Date</th>
+                  <th width="140">Invoice Number</th>
+                  <th width="140">Invoice Date</th>
+                  <th width="110" class="right-text">Current Stock</th>
+                  <th width="110" class="right-text">Cost Value</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (item of expiredItems(); track item.medicineId) {
+                  <tr [class.row-selected]="isItemSelected(item.medicineId)">
+                    <td class="center-text">
+                      <label class="custom-checkbox">
+                        <input 
+                          type="checkbox" 
+                          [checked]="isItemSelected(item.medicineId)"
+                          (change)="toggleSelectItem(item.medicineId)"
+                        />
+                        <span class="checkmark"></span>
+                      </label>
+                    </td>
+                    <td>
+                      <div class="prod-info">
+                        <span class="prod-name">{{ item.name }}</span>
+                        <div class="prod-details">
+                          <span class="sku-badge">{{ item.sku }}</span>
+                          <span class="generic-name">{{ item.genericName }}</span>
+                        </div>
+                      </div>
+                    </td>
+                    <td>
+                      <span class="batch-badge">{{ item.batchNumber }}</span>
+                    </td>
+                    <td>
+                      <span class="expiry-badge expired-date-badge">{{ item.expiryDate | date:'MM/yyyy' }}</span>
+                    </td>
+                    <td>
+                      <span class="invoice-number-badge">#{{ item.invoiceNumber }}</span>
+                    </td>
+                    <td>
+                      <span class="invoice-date-badge">{{ item.invoiceDate }}</span>
+                    </td>
+                    <td class="right-text font-semibold red-text">
+                      {{ item.stockLevel }} units
+                    </td>
+                    <td class="right-text font-semibold font-mono">
+                      ₹{{ (item.costPrice * item.stockLevel) | number:'1.2-2' }}
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      </div>
+
+      <!-- Action Panel Card -->
+      @if (expiredItems().length > 0) {
+        <div class="glass-card action-card">
+          <div class="card-header-sleek">
+            <h3>3. Stockout Authorization</h3>
+            <p class="subtitle-text">Authorize permanent removal and disposal of selected expired products</p>
+          </div>
+
+          <div class="summary-matrix">
+            <div class="summary-box">
+              <span class="summary-label">Selected Batches</span>
+              <span class="summary-value yellow-text">{{ selectedCount() }} / {{ expiredItems().length }}</span>
+            </div>
+            
+            <div class="summary-box">
+              <span class="summary-label">Disposal Stock Volume</span>
+              <span class="summary-value red-text">
+                {{ selectedCount() > 0 ? 'Deducting Stock' : '0 Items Selected' }}
+              </span>
+            </div>
+
+            <div class="summary-box total-loss-box">
+              <span class="summary-label">Estimated Financial Loss (Cost)</span>
+              <span class="summary-value loss-value">₹{{ totalCostLoss() | number:'1.2-2' }}</span>
+            </div>
+          </div>
+
+          <div class="authorization-form">
+            <div class="form-group">
+              <label class="form-label">Disposal Method / Category</label>
+              <input type="text" class="form-control" value="Expired Stockout (Wholesaler Return)" readonly />
+            </div>
+            
+            <div class="alert-banner warning-banner">
+              <span class="alert-icon">⚠️</span>
+              <div class="alert-content">
+                <strong>Permanent Inventory Action</strong>
+                <p>This action decreases the batch stock levels to 0. All zero-level batches will be safely deactivated from checkout terminals.</p>
+              </div>
+            </div>
+
+            <button 
+              class="btn btn-danger btn-stockout-execute"
+              [disabled]="selectedCount() === 0"
+              (click)="onStockoutSelected()"
+            >
+              <span>🚨 Authorize Disposal & Stockout ({{ selectedCount() }})</span>
+            </button>
+          </div>
+        </div>
+      }
+    </div>
+  } @else {
+    <div class="select-wholesaler-placeholder animate-fade-in">
+      <div class="placeholder-icon-ring">
+        <span class="placeholder-icon">🤝</span>
+      </div>
+      <h3>Wholesaler Inventory Selection Required</h3>
+      <p>Please search and select a wholesaler above to audit and cleanly stock out active expired medicine batches.</p>
+    </div>
+  }
+
+  <!-- Frosted Toast Alert Notification -->
+  <div class="toast-notification" [class.toast-active]="toastActive()" [class.toast-danger]="toastType() === 'danger'">
+    <div class="toast-content">
+      <span class="toast-icon">{{ toastType() === 'success' ? '✓' : '🚨' }}</span>
+      <span class="toast-text">{{ toastMessage() }}</span>
+    </div>
+  </div>
+
+</div>

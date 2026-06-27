@@ -1,0 +1,214 @@
+<div class="disposal-container animate-fade-in">
+
+  <!-- KPI Row Panel -->
+  <div class="kpi-panel-row">
+    <!-- Expired Count Card -->
+    <div class="glass-panel kpi-card danger-card">
+      <div class="kpi-badge">⚠️ CRITICAL EXPIRED ITEMS</div>
+      <div class="kpi-value">{{ expiredBatches().length }} <span class="kpi-unit">batch(es)</span></div>
+      <div class="kpi-desc">Currently sitting in physical storage shelves. Needs immediate disposal.</div>
+    </div>
+
+    <!-- Expired Unit Volume Card -->
+    <div class="glass-panel kpi-card warning-card">
+      <div class="kpi-badge">📦 EXPIRED UNITS VOLUME</div>
+      <div class="kpi-value">{{ totalExpiredUnits() }} <span class="kpi-unit">unit(s)</span></div>
+      <div class="kpi-desc">Total bulk equivalent packs of solid and liquid formulations expired.</div>
+    </div>
+
+    <!-- Financial Losses Write-off Card -->
+    <div class="glass-panel kpi-card loss-card">
+      <div class="kpi-badge">💸 TOTAL FINANCIAL LOSS</div>
+      <div class="kpi-value">₹{{ totalFinancialLoss() | number:'1.2-2' }}</div>
+      <div class="kpi-desc">Cumulative cost value of all written-off inventory batches.</div>
+    </div>
+  </div>
+
+  <!-- Search & Tab Bar Navigation -->
+  <div class="action-filters-bar glass-panel">
+    <div class="tabs-group">
+      <button type="button" class="tab-btn" [class.active]="activeTab() === 'expired'" (click)="activeTab.set('expired'); searchQuery.set('')">
+        🚨 Expired Batches ({{ expiredBatches().length }})
+      </button>
+      <button type="button" class="tab-btn" [class.active]="activeTab() === 'history'" (click)="activeTab.set('history'); searchQuery.set('')">
+        📋 Disposal Audit Logs ({{ disposalHistory().length }})
+      </button>
+    </div>
+
+    <!-- Widescreen Search Input -->
+    <div class="search-wrapper">
+      <input type="text" class="form-input search-input" [value]="searchQuery()" (input)="searchQuery.set($any($event.target).value)" 
+             placeholder="Search by product name, SKU, or batch number...">
+      <span class="search-icon">🔍</span>
+    </div>
+  </div>
+
+  <!-- Tab Content: Active Expired Batches -->
+  <div *ngIf="activeTab() === 'expired'" class="tab-content animate-fade-in">
+    <div class="ledger-table-card glass-panel">
+      <div class="table-container">
+        <table class="premium-table">
+          <thead>
+            <tr>
+              <th style="width: 250px;">Product Name (SKU)</th>
+              <th style="width: 140px;">Chemical Salt Formulation</th>
+              <th style="width: 120px;">Batch No</th>
+              <th style="width: 120px;">Expiry Date</th>
+              <th style="width: 130px;">Days Since Expired</th>
+              <th style="width: 110px;">Cost Price (₹)</th>
+              <th style="width: 110px;">Selling Price (₹)</th>
+              <th style="width: 110px;">Rack Location</th>
+              <th style="width: 110px;">Stock Level</th>
+              <th style="width: 120px; text-align: center;">Write-off Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let item of filteredExpiredBatches()">
+              <td>
+                <div class="product-cell">
+                  <span class="product-name">{{ item.name }}</span>
+                  <span class="product-sku">SKU: {{ item.sku }}</span>
+                </div>
+              </td>
+              <td><span class="muted-text font-small">{{ item.genericName }}</span></td>
+              <td><span class="badge badge-info">{{ item.batchNumber }}</span></td>
+              <td><span class="badge badge-danger">{{ item.expiryDate | date:'MM/yyyy' }}</span></td>
+              <td>
+                <span class="days-expired-text">⚠️ {{ getDaysExpired(item.expiryDate) }} day(s) ago</span>
+              </td>
+              <td>₹{{ item.costPrice | number:'1.2-2' }}</td>
+              <td>₹{{ item.sellingPrice | number:'1.2-2' }}</td>
+              <td><span class="muted-text font-small">{{ item.rackLocation || '—' }}</span></td>
+              <td>
+                <span class="badge badge-danger font-medium">{{ item.stockLevel }} pack(s)</span>
+              </td>
+              <td style="text-align: center;">
+                <button type="button" class="btn btn-danger btn-compact" (click)="openDisposalModal(item)">
+                  🗑️ Dispose Batch
+                </button>
+              </td>
+            </tr>
+            <tr *ngIf="filteredExpiredBatches().length === 0">
+              <td colspan="10" class="no-records-cell">
+                <div class="empty-state">
+                  <span class="empty-icon">🎉</span>
+                  <h3>No expired stock batches detected!</h3>
+                  <p>All active inventory formulation shelves are within their safe calendar window.</p>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab Content: Disposal History Audit Logs -->
+  <div *ngIf="activeTab() === 'history'" class="tab-content animate-fade-in">
+    <div class="ledger-table-card glass-panel">
+      <div class="table-container">
+        <table class="premium-table">
+          <thead>
+            <tr>
+              <th style="width: 150px;">Disposal Date</th>
+              <th style="width: 250px;">Product Name (SKU)</th>
+              <th style="width: 120px;">Batch No</th>
+              <th style="width: 120px;">Expiry Date</th>
+              <th style="width: 110px;">Quantity Disposed</th>
+              <th style="width: 110px;">Unit Cost Rate</th>
+              <th style="width: 130px;">Total Write-off Loss</th>
+              <th style="width: 160px;">Disposal Reason</th>
+              <th style="width: 150px;">Authorized Operator</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let log of filteredHistory()">
+              <td><span class="muted-text font-medium">{{ log.disposalDate | date:'dd/MM/yyyy' }}</span></td>
+              <td>
+                <div class="product-cell">
+                  <span class="product-name">{{ log.productName }}</span>
+                  <span class="product-sku">SKU: {{ log.sku }}</span>
+                </div>
+              </td>
+              <td><span class="badge badge-info">{{ log.batchNumber || '—' }}</span></td>
+              <td><span class="muted-text">{{ log.expiryDate | date:'MM/yyyy' }}</span></td>
+              <td><span class="font-medium">{{ log.quantityDisposed }} pack(s)</span></td>
+              <td>₹{{ log.costPrice | number:'1.2-2' }}</td>
+              <td>
+                <span class="loss-total-cell">₹{{ (log.quantityDisposed * log.costPrice) | number:'1.2-2' }}</span>
+              </td>
+              <td>
+                <span class="badge badge-warning" style="text-transform: uppercase;">{{ log.reason }}</span>
+              </td>
+              <td><span class="operator-badge">👤 {{ log.disposedBy }}</span></td>
+            </tr>
+            <tr *ngIf="filteredHistory().length === 0">
+              <td colspan="9" class="no-records-cell">
+                <div class="empty-state">
+                  <span class="empty-icon">📊</span>
+                  <h3>No historical write-off records found</h3>
+                  <p>No inventory batch disposal procedures have been executed yet.</p>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Frosted Glass Disposal Modal -->
+  <div *ngIf="isDisposalModalOpen()" class="modal-backdrop animate-fade-in" style="z-index: 1100; overflow-y: auto; padding: 40px 0; display: block;">
+    <div class="glass-panel modal-card animate-fade-in" style="width: 600px; max-width: 90vw; margin: 5vh auto; padding: 24px; border: 1px solid var(--color-danger); box-shadow: 0 10px 40px rgba(239, 68, 68, 0.25); text-align: left;">
+      
+      <div class="modal-header" style="border-bottom: 1px solid var(--border-color); padding-bottom: 12px; margin-bottom: 20px;">
+        <h2 style="color: #f87171; display: flex; align-items: center; gap: 8px; margin: 0;">
+          🗑️ Dispose Expired Stock Batch
+        </h2>
+        <button type="button" class="btn-close" (click)="closeDisposalModal()">×</button>
+      </div>
+
+      <form (submit)="submitDisposal($event)">
+        <div class="modal-details-summary" style="background: rgba(239, 68, 68, 0.05); border: 1px solid rgba(239, 68, 68, 0.15); padding: 12px 16px; border-radius: var(--radius-sm); margin-bottom: 20px; font-size: 0.9rem; line-height: 1.5;">
+          <div style="font-weight: 700; font-size: 1rem; color: #ffffff; margin-bottom: 6px;">{{ selectedBatch()?.name }}</div>
+          <div style="color: var(--text-muted); display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+            <span>SKU: <strong style="color: #ffffff;">{{ selectedBatch()?.sku }}</strong></span>
+            <span>Batch No: <strong style="color: var(--color-primary);">{{ selectedBatch()?.batchNumber }}</strong></span>
+            <span>Expiry Date: <strong style="color: #f87171;">{{ selectedBatch()?.expiryDate | date:'MM/yyyy' }}</strong></span>
+            <span>Available Stock: <strong style="color: #ffffff;">{{ selectedBatch()?.stockLevel }} pack(s)</strong></span>
+          </div>
+        </div>
+
+        <div class="input-group" style="margin-bottom: 18px;">
+          <label class="input-label">Quantity to Dispose (packs) *</label>
+          <input id="dispose-qty-input" type="number" class="form-input" [min]="1" [max]="selectedBatch()?.stockLevel" 
+                 [value]="disposeQuantity()" (input)="disposeQuantity.set(+$any($event.target).value)" required style="font-weight: 700; color: #ffffff;">
+          <span style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">
+            Enters the exact quantity to retire from active inventory. Max limit: {{ selectedBatch()?.stockLevel }}.
+          </span>
+        </div>
+
+        <div class="input-group" style="margin-bottom: 24px;">
+          <label class="input-label">Disposal Reason / Category *</label>
+          <select class="form-input" [value]="disposeReason()" (change)="disposeReason.set($any($event.target).value)" required>
+            <option value="Expired">Expired Stock retired from shelf</option>
+            <option value="Damaged">Damaged packaging / Broken seals</option>
+            <option value="Recalled">Manufacturer safety recall</option>
+            <option value="Contaminated">Storage temperature contamination</option>
+          </select>
+        </div>
+
+        <div style="display: flex; gap: 14px; justify-content: flex-end; border-top: 1px solid var(--border-color); padding-top: 18px; margin-top: 10px;">
+          <button type="button" class="btn btn-secondary" (click)="closeDisposalModal()" style="padding: 8px 16px; font-size: 0.88rem;">
+            Cancel
+          </button>
+          <button type="submit" class="btn btn-danger" style="padding: 8px 24px; font-size: 0.88rem; font-weight: 700; background: var(--color-danger); color: #ffffff;">
+            Confirm Write-off
+          </button>
+        </div>
+      </form>
+
+    </div>
+  </div>
+
+</div>

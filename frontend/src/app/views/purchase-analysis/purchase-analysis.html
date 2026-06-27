@@ -1,0 +1,371 @@
+<div class="sales-analysis-container">
+  
+  <!-- Printable Page Header -->
+  <div class="print-report-header">
+    <div class="print-title">Arpita Medical — Enterprise Purchase Analysis Report</div>
+    <div class="print-meta-row">
+      <div>Report Period: {{ startDate() | date:'mediumDate' }} to {{ endDate() | date:'mediumDate' }}</div>
+      <div>Generated On: {{ currentDate | date:'medium' }} | Reconciler: Admin Monish</div>
+    </div>
+  </div>
+
+  <!-- Glassmorphic Filters & Controls Toolbar -->
+  <div class="filter-panel no-print">
+    <div class="preset-row">
+      <div class="preset-buttons">
+        <button class="btn-preset" [class.active]="activePreset() === 'today'" (click)="quickSelect('today')">Today</button>
+        <button class="btn-preset" [class.active]="activePreset() === 'yesterday'" (click)="quickSelect('yesterday')">Yesterday</button>
+        <button class="btn-preset" [class.active]="activePreset() === 'thisWeek'" (click)="quickSelect('thisWeek')">This Week</button>
+        <button class="btn-preset" [class.active]="activePreset() === 'thisMonth'" (click)="quickSelect('thisMonth')">This Month</button>
+        <button class="btn-preset" [class.active]="activePreset() === 'thisQuarter'" (click)="quickSelect('thisQuarter')">This Quarter</button>
+        <button class="btn-preset" [class.active]="activePreset() === 'thisYear'" (click)="quickSelect('thisYear')">This Year</button>
+      </div>
+
+      <div class="custom-range">
+        <div class="filter-group">
+          <input type="date" class="input-date" [ngModel]="startDate()" (ngModelChange)="startDate.set($event)">
+        </div>
+        <span class="control-label" style="margin-top: 0;">to</span>
+        <div class="filter-group">
+          <input type="date" class="input-date" [ngModel]="endDate()" (ngModelChange)="endDate.set($event)">
+        </div>
+        <button class="btn-apply" (click)="applyCustomRange()">Apply</button>
+      </div>
+    </div>
+
+    <!-- Advanced Table & Card Filter Dropdowns -->
+    <div class="dropdown-filters">
+      <div class="filter-group">
+        <label class="filter-label">Search Formulation</label>
+        <input type="text" class="input-search" placeholder="Filter name, SKU, or chemical salt..." [ngModel]="searchText()" (ngModelChange)="searchText.set($event); currentPage.set(1)">
+      </div>
+
+      <div class="filter-group">
+        <label class="filter-label">Product Category</label>
+        <select class="select-compact" [ngModel]="selectedCategory()" (ngModelChange)="selectedCategory.set($event); currentPage.set(1)">
+          <option value="ALL">All Categories</option>
+          <option *ngFor="let cat of categories()" [value]="cat">{{ cat }}</option>
+        </select>
+      </div>
+
+      <div class="filter-group" style="visibility: hidden; width: 0; padding: 0; margin: 0;">
+        <!-- Hidden spacer matching Sales layout symmetry -->
+      </div>
+
+      <div class="filter-group">
+        <button class="btn-reset" (click)="resetFilters()">Reset Dashboard</button>
+      </div>
+    </div>
+  </div>
+
+  <div *ngIf="loading()" class="loading-overlay-blur">
+    <div class="spinner"></div>
+    <div>Processing wholesaler invoices and compiling procurement ledgers...</div>
+  </div>
+
+  <div *ngIf="!loading() && summary()">
+    
+    <!-- 6 Symmetrical KPI Summary Cards Grid -->
+    <div class="kpi-grid-widescreen" style="grid-template-columns: repeat(6, 1fr);">
+      
+      <!-- Card 1: Gross Purchases -->
+      <div class="metric-card sales">
+        <div class="metric-header">
+          <span class="metric-label">Gross Purchases</span>
+          <span class="metric-icon">📦</span>
+        </div>
+        <div class="metric-value">₹{{ (summary().grossPurchases.currentValue || 0) | number:'1.2-2' }}</div>
+        <div class="metric-footer">
+          <span class="trend-badge" [class.up]="summary().grossPurchases.trendDirection === 'UP'" [class.down]="summary().grossPurchases.trendDirection === 'DOWN'" [class.flat]="summary().grossPurchases.trendDirection === 'FLAT'">
+            {{ summary().grossPurchases.trendDirection === 'UP' ? '▲' : summary().grossPurchases.trendDirection === 'DOWN' ? '▼' : '■' }}
+            {{ summary().grossPurchases.growthPercentage }}%
+          </span>
+          <span>vs previous period</span>
+        </div>
+      </div>
+
+      <!-- Card 2: Net Procurement -->
+      <div class="metric-card revenue">
+        <div class="metric-header">
+          <span class="metric-label">Net Procurement</span>
+          <span class="metric-icon">🛒</span>
+        </div>
+        <div class="metric-value" style="color: var(--color-secondary);">₹{{ (summary().netProcurement.currentValue || 0) | number:'1.2-2' }}</div>
+        <div class="metric-footer">
+          <span class="trend-badge" [class.up]="summary().netProcurement.trendDirection === 'UP'" [class.down]="summary().netProcurement.trendDirection === 'DOWN'" [class.flat]="summary().netProcurement.trendDirection === 'FLAT'">
+            {{ summary().netProcurement.trendDirection === 'UP' ? '▲' : summary().netProcurement.trendDirection === 'DOWN' ? '▼' : '■' }}
+            {{ summary().netProcurement.growthPercentage }}%
+          </span>
+          <span>final indents paid</span>
+        </div>
+      </div>
+
+      <!-- Card 3: GST Paid -->
+      <div class="metric-card tax">
+        <div class="metric-header">
+          <span class="metric-label">Tax Paid (GST)</span>
+          <span class="metric-icon">🏛️</span>
+        </div>
+        <div class="metric-value">₹{{ (summary().taxPaid.currentValue || 0) | number:'1.2-2' }}</div>
+        <div class="metric-footer">
+          <span class="trend-badge" [class.up]="summary().taxPaid.trendDirection === 'UP'" [class.down]="summary().taxPaid.trendDirection === 'DOWN'" [class.flat]="summary().taxPaid.trendDirection === 'FLAT'">
+            {{ summary().taxPaid.trendDirection === 'UP' ? '▲' : summary().taxPaid.trendDirection === 'DOWN' ? '▼' : '■' }}
+            {{ summary().taxPaid.growthPercentage }}%
+          </span>
+          <span>input tax credit</span>
+        </div>
+      </div>
+
+      <!-- Card 4: Discounts Received -->
+      <div class="metric-card profit">
+        <div class="metric-header">
+          <span class="metric-label">Discounts Saved</span>
+          <span class="metric-icon">🔖</span>
+        </div>
+        <div class="metric-value" style="color: var(--color-success);">₹{{ (summary().discountsReceived.currentValue || 0) | number:'1.2-2' }}</div>
+        <div class="metric-footer">
+          <span class="trend-badge" [class.up]="summary().discountsReceived.trendDirection === 'UP'" [class.down]="summary().discountsReceived.trendDirection === 'DOWN'" [class.flat]="summary().discountsReceived.trendDirection === 'FLAT'">
+            {{ summary().discountsReceived.trendDirection === 'UP' ? '▲' : summary().discountsReceived.trendDirection === 'DOWN' ? '▼' : '■' }}
+            {{ summary().discountsReceived.growthPercentage }}%
+          </span>
+          <span>wholesaler schemes</span>
+        </div>
+      </div>
+
+      <!-- Card 5: Total Invoices -->
+      <div class="metric-card invoices">
+        <div class="metric-header">
+          <span class="metric-label">Total Bills</span>
+          <span class="metric-icon">🧾</span>
+        </div>
+        <div class="metric-value">{{ (summary().totalInvoices.currentValue || 0) | number:'1.0-0' }}</div>
+        <div class="metric-footer">
+          <span class="trend-badge" [class.up]="summary().totalInvoices.trendDirection === 'UP'" [class.down]="summary().totalInvoices.trendDirection === 'DOWN'" [class.flat]="summary().totalInvoices.trendDirection === 'FLAT'">
+            {{ summary().totalInvoices.trendDirection === 'UP' ? '▲' : summary().totalInvoices.trendDirection === 'DOWN' ? '▼' : '■' }}
+            {{ summary().totalInvoices.growthPercentage }}%
+          </span>
+          <span>invoices registered</span>
+        </div>
+      </div>
+
+      <!-- Card 6: Average Invoice Value -->
+      <div class="metric-card aov">
+        <div class="metric-header">
+          <span class="metric-label">Average Invoice</span>
+          <span class="metric-icon">💳</span>
+        </div>
+        <div class="metric-value">₹{{ (summary().avgInvoiceValue.currentValue || 0) | number:'1.2-2' }}</div>
+        <div class="metric-footer">
+          <span class="trend-badge" [class.up]="summary().avgInvoiceValue.trendDirection === 'UP'" [class.down]="summary().avgInvoiceValue.trendDirection === 'DOWN'" [class.flat]="summary().avgInvoiceValue.trendDirection === 'FLAT'">
+            {{ summary().avgInvoiceValue.trendDirection === 'UP' ? '▲' : summary().avgInvoiceValue.trendDirection === 'DOWN' ? '▼' : '■' }}
+            {{ summary().avgInvoiceValue.growthPercentage }}%
+          </span>
+          <span>wholesaler ticket size</span>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Daily Procurement Trend Line Graph -->
+    <div class="chart-container-panel">
+      <div class="chart-header">
+        <div class="chart-title">
+          <span>📈 Daily Procurement & Indenting Curve</span>
+        </div>
+        <div class="chart-controls no-print">
+          <button class="btn-chart-tab" [class.active]="activeChartMetric() === 'purchases'" (click)="activeChartMetric.set('purchases')">Procurement (₹)</button>
+          <button class="btn-chart-tab" [class.active]="activeChartMetric() === 'invoices'" (click)="activeChartMetric.set('invoices')">Invoice Count</button>
+        </div>
+      </div>
+      <div class="chart-body">
+        <svg viewBox="0 0 1000 300" class="svg-chart">
+          <defs>
+            <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="var(--color-primary)" stop-opacity="0.4"/>
+              <stop offset="100%" stop-color="var(--color-primary)" stop-opacity="0.0"/>
+            </linearGradient>
+          </defs>
+
+          <!-- Grid Lines -->
+          <line x1="30" y1="40" x2="970" y2="40" class="grid-line"></line>
+          <line x1="30" y1="95" x2="970" y2="95" class="grid-line"></line>
+          <line x1="30" y1="150" x2="970" y2="150" class="grid-line"></line>
+          <line x1="30" y1="205" x2="970" y2="205" class="grid-line"></line>
+          <line x1="30" y1="260" x2="970" y2="260" class="axis-line"></line>
+
+          <!-- Gradient Polygon area under the curve -->
+          <polygon [attr.points]="lineChartFillPoints()" class="chart-polygon-gradient"></polygon>
+
+          <!-- Glowing Line path -->
+          <polyline [attr.points]="lineChartPoints()" class="chart-polyline"></polyline>
+
+          <!-- Interactive Hover Node Tooltips -->
+          <circle *ngFor="let pt of chartHoverCircles(); let i = index" 
+                  [attr.cx]="pt.x" 
+                  [attr.cy]="pt.y" 
+                  r="5" 
+                  class="chart-hover-circle sales">
+            <title>Date: {{ formatTrendDate(pt.date) }} | Value: {{ activeChartMetric() === 'invoices' ? '' : '₹' }}{{ pt.value | number:'1.2-2' }}</title>
+          </circle>
+
+          <!-- X Axis Labels (every few days to avoid overlap) -->
+          <ng-container *ngFor="let pt of chartHoverCircles(); let i = index">
+            <text *ngIf="chartHoverCircles().length <= 10 || i % (chartHoverCircles().length > 20 ? 4 : 2) === 0" 
+                  [attr.x]="pt.x" y="280" class="axis-label">
+              {{ formatTrendDate(pt.date) }}
+            </text>
+          </ng-container>
+        </svg>
+      </div>
+    </div>
+
+    <!-- Splits Rows (Category Bars & Wholesalers Shares list) -->
+    <div class="split-row-2col">
+      
+      <!-- Left Panel: Category Splits -->
+      <div class="chart-container-panel">
+        <div class="chart-header">
+          <div class="chart-title">📦 Formulation Category Procurement Split</div>
+        </div>
+        <div class="chart-body">
+          <div class="category-list">
+            <div *ngFor="let cat of summary().categorySplits" class="category-bar-group">
+              <div class="category-bar-header">
+                <span class="category-bar-title">{{ cat.category }}</span>
+                <span class="category-bar-metrics">
+                  ₹{{ cat.purchaseAmount | number:'1.2-2' }} ({{ cat.purchaseSharePercentage }}%)
+                </span>
+              </div>
+              <div class="bar-track">
+                <div class="bar-fill" [style.width.%]="cat.purchaseSharePercentage" [title]="cat.purchaseSharePercentage + '% Share'"></div>
+              </div>
+            </div>
+            <div *ngIf="summary().categorySplits?.length === 0" class="empty-split-state">
+              No formulation category indents found.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Panel: Wholesaler share splits -->
+      <div class="chart-container-panel">
+        <div class="chart-header">
+          <div class="chart-title">🏢 Wholesaler Budget Share Mix</div>
+        </div>
+        <div class="chart-body">
+          <div class="payment-mix-list">
+            <div *ngFor="let sup of summary().wholesalerShares" class="payment-method-card">
+              <span class="pay-icon" style="background: rgba(20,184,166,0.1); color: var(--color-primary);">🏢</span>
+              <span class="pay-name">{{ sup.wholesalerName }}</span>
+              <span class="pay-count">{{ sup.invoiceCount }} invoice(s) | ₹{{ sup.purchaseAmount | number:'1.2-2' }}</span>
+              <span class="pay-percentage" style="color: var(--color-secondary);">{{ sup.percentageShare | number:'1.1-1' }}%</span>
+            </div>
+            <div *ngIf="summary().wholesalerShares?.length === 0" class="empty-split-state">
+              No wholesaler bills recorded in selected range.
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Product Procurement Audit Grid -->
+    <div class="chart-container-panel no-print" style="margin-top: 10px;">
+      <div class="chart-header" style="padding-bottom: 0;">
+        <div class="grid-header-left">
+          <div class="chart-title">📋 Product-wise Procurement Audits Ledger</div>
+          <p class="chart-subtitle" style="margin-top: 2px;">Comprehensive itemised history of drug catalog restocks</p>
+        </div>
+        <div class="grid-header-right">
+          <button class="btn btn-secondary" (click)="exportToExcel()" style="padding: 6px 14px; font-size: 0.8rem; display: flex; align-items: center; gap: 6px;">
+            📄 Export Ledger to CSV
+          </button>
+          <button class="btn btn-secondary" (click)="printReport()" style="padding: 6px 14px; font-size: 0.8rem; display: flex; align-items: center; gap: 6px;">
+            🖨️ Print Clinical Report
+          </button>
+        </div>
+      </div>
+
+      <div class="table-card-body" style="padding: 0 20px 20px 20px; overflow-x: auto;">
+        <table class="report-table">
+          <thead>
+            <tr>
+              <th style="cursor: pointer;" (click)="toggleSort('sku')">SKU Reference ▾</th>
+              <th style="cursor: pointer;" (click)="toggleSort('name')">Medicine Formulation ▾</th>
+              <th class="number-cell" style="cursor: pointer;" (click)="toggleSort('quantityPurchased')">Qty Procured ▾</th>
+              <th class="number-cell" style="cursor: pointer;" (click)="toggleSort('averageCostRate')">Avg Cost (₹) ▾</th>
+              <th class="number-cell" style="cursor: pointer;" (click)="toggleSort('averageMRP')">Avg MRP (₹) ▾</th>
+              <th class="number-cell" style="cursor: pointer;" (click)="toggleSort('totalTax')">Tax Paid (₹) ▾</th>
+              <th class="number-cell" style="cursor: pointer;" (click)="toggleSort('totalDiscount')">Discount Recd (₹) ▾</th>
+              <th class="number-cell" style="cursor: pointer;" (click)="toggleSort('totalProcurementValue')">Total Value (₹) ▾</th>
+              <th>Composition Salt Mapping</th>
+              <th>Rack</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let p of paginatedProducts()">
+              <td style="font-weight: 700; color: var(--color-primary); font-size: 0.78rem;">{{ p.sku }}</td>
+              <td style="font-weight: 700; color: var(--text-heading);">{{ p.name }}</td>
+              <td class="number-cell" style="font-weight: 600;">{{ p.quantityPurchased }}</td>
+              <td class="number-cell">₹{{ p.averageCostRate | number:'1.2-2' }}</td>
+              <td class="number-cell">₹{{ p.averageMRP | number:'1.2-2' }}</td>
+              <td class="number-cell">₹{{ p.totalTax | number:'1.2-2' }}</td>
+              <td class="number-cell" style="color: var(--color-success);">₹{{ p.totalDiscount | number:'1.2-2' }}</td>
+              <td class="number-cell" style="font-weight: 700; color: var(--color-secondary);">₹{{ p.totalProcurementValue | number:'1.2-2' }}</td>
+              <td style="font-size: 0.75rem; color: var(--text-muted); font-style: italic;">{{ p.composition }}</td>
+              <td><span class="badge badge-info">{{ p.rackLocation }}</span></td>
+            </tr>
+            <tr *ngIf="filteredProducts().length === 0">
+              <td colspan="10" style="text-align: center; padding: 24px; color: var(--text-muted);">
+                No product restocks match your active filters.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <!-- Table Pagination controls -->
+        <div class="pagination-container" style="margin-top: 14px;">
+          <div class="pagination-info">
+            Showing {{ paginatedProducts().length }} of {{ filteredProducts().length }} items | Page {{ currentPage() }} of {{ totalPages() }}
+          </div>
+          <div class="pagination-buttons">
+            <button class="btn btn-secondary" (click)="setPage(1)" [disabled]="currentPage() === 1">« First</button>
+            <button class="btn btn-secondary" (click)="setPage(currentPage() - 1)" [disabled]="currentPage() === 1">‹ Prev</button>
+            <span class="page-indicator">{{ currentPage() }}</span>
+            <button class="btn btn-secondary" (click)="setPage(currentPage() + 1)" [disabled]="currentPage() === totalPages()">Next ›</button>
+            <button class="btn btn-secondary" (click)="setPage(totalPages())" [disabled]="currentPage() === totalPages()">Last »</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- AI operating recommendations -->
+    <div class="chart-container-panel no-print" style="margin-top: 10px; margin-bottom: 20px;">
+      <div class="chart-header">
+        <div class="chart-title">🤖 AI-Driven Procurement Recommendations</div>
+      </div>
+      <div class="chart-body" style="padding: 20px;">
+        <div class="insights-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px;">
+          <div *ngFor="let ins of summary().insights" class="insight-card" 
+               [class.success]="ins.type === 'SUCCESS'" 
+               [class.warning]="ins.type === 'WARNING'" 
+               [class.info]="ins.type === 'INFO'" 
+               [class.danger]="ins.type === 'DANGER'"
+               style="padding: 16px; border-radius: var(--radius-sm); border: 1px solid rgba(255,255,255,0.06); display: flex; flex-direction: column; gap: 8px;">
+            <div style="display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 0.9rem; color: var(--text-heading);">
+              <span>{{ ins.type === 'SUCCESS' ? '🟢' : ins.type === 'WARNING' ? '🟡' : ins.type === 'INFO' ? '🔵' : '🔴' }}</span>
+              <span>{{ ins.title }}</span>
+            </div>
+            <div style="font-size: 0.8rem; color: var(--text-muted); line-height: 1.4;">{{ ins.description }}</div>
+            <div style="font-size: 0.78rem; font-weight: 600; color: var(--color-primary); margin-top: 4px; border-top: 1px dashed rgba(255,255,255,0.06); padding-top: 8px;">
+              💡 Suggestion: {{ ins.suggestion }}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+</div>

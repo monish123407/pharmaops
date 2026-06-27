@@ -1,0 +1,381 @@
+<div class="inventory-actions animate-fade-in">
+  <!-- Interactive Search Bar -->
+  <div class="search-bar">
+    <span class="search-icon">🔍</span>
+    <input type="text" class="form-input search-input" 
+           [value]="searchTerm()" (input)="onSearchChange($any($event.target).value)" 
+           placeholder="Search by formulation name, generic, SKU...">
+  </div>
+
+  <!-- Action Filters -->
+  <div class="filter-tabs">
+    <button class="tab-btn" [class.active]="activeFilter() === 'ALL'" (click)="setFilter('ALL')">
+      📋 All Formulations
+    </button>
+    <button class="tab-btn" [class.active]="activeFilter() === 'LOW_STOCK'" (click)="setFilter('LOW_STOCK')">
+      ⚠️ Low Stock Only
+    </button>
+    <button class="tab-btn" [class.active]="activeFilter() === 'EXPIRED'" (click)="setFilter('EXPIRED')">
+      🛑 Expired Batches
+    </button>
+    <button class="tab-btn" [class.active]="activeFilter() === 'EXPIRING_SOON'" (click)="setFilter('EXPIRING_SOON')">
+      ⏳ Expiring Soon
+    </button>
+  </div>
+
+  <!-- Add Medicine Button (Conditional on Role permissions) -->
+  @if (auth.hasRole(['ADMIN', 'INVENTORY_MANAGER', 'PHARMACIST'])) {
+    <div style="display: flex; gap: 8px;">
+      <button class="btn btn-secondary" style="border-color: var(--color-primary); color: var(--color-primary);" (click)="downloadSampleExcel()">
+        📋 Sample Template
+      </button>
+      <button class="btn btn-secondary" (click)="triggerExcelFileSelect()">
+        📥 Import Excel
+      </button>
+      <button class="btn btn-primary" (click)="openAddModal()">
+        ➕ Stock-In Product
+      </button>
+    </div>
+  }
+</div>
+
+@if (loading()) {
+  <div style="display: flex; justify-content: center; align-items: center; height: 300px; font-size: 1.1rem; color: var(--text-muted);">
+    ⌛ Fetching Inventory Catalog...
+  </div>
+} @else if (filteredMedicines().length === 0) {
+  <div class="glass-panel animate-fade-in" style="text-align: center; padding: 60px; color: var(--text-muted);">
+    <h3>No formulations match your search parameters.</h3>
+    <p style="margin-top: 8px;">Try modifying your active filter tabs or verify product entry fields.</p>
+  </div>
+} @else {
+  <!-- Inventory Cards Grid -->
+  <div class="medicine-grid animate-fade-in">
+    @for (med of filteredMedicines(); track med.sku) {
+      <div class="glass-panel med-card" 
+           [class.animate-pulse-danger]="med.hasExpired"
+           [style.border-top]="med.hasExpired ? '4px solid var(--color-danger)' : '1px solid var(--border-color)'">
+        
+        <div class="med-header">
+          <div>
+            <h3 class="med-title">{{ med.name }}</h3>
+            <span class="med-generic">{{ med.genericName }}</span>
+          </div>
+          <!-- Status Badges Stack -->
+          <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 6px;">
+            <!-- Stock Status Badge -->
+            @if (med.totalStockLevel === 0) {
+              <span class="badge badge-danger">Out of Stock</span>
+            } @else if (med.hasLowStock) {
+              <span class="badge badge-warning">Low Stock ({{ med.totalStockLevel }})</span>
+            } @else {
+              <span class="badge badge-success">Healthy Stock</span>
+            }
+
+            <!-- Expiry Status Badge -->
+            @if (med.hasExpired) {
+              <span class="badge badge-danger">Expired stock</span>
+            } @else if (med.hasExpiringSoon) {
+              <span class="badge badge-warning">Expiring soon</span>
+            } @else {
+              <span class="badge badge-info">Stable</span>
+            }
+          </div>
+        </div>
+
+        <!-- Metric Details Panel -->
+        <div class="med-details">
+          <div>
+            <div class="detail-label">SKU</div>
+            <div class="detail-value">{{ med.sku }}</div>
+          </div>
+          <div>
+            <div class="detail-label">Active Batches</div>
+            <div class="detail-value">{{ med.batches.length }} batch(es)</div>
+          </div>
+          <div>
+            <div class="detail-label">GST Slab</div>
+            <div class="detail-value">{{ med.gstRate }}%</div>
+          </div>
+          <div>
+            <div class="detail-label">HSN Code</div>
+            <div class="detail-value">{{ med.hsnCode }}</div>
+          </div>
+          <div style="grid-column: span 2;">
+            <div class="detail-label">Stock Level</div>
+            <div class="detail-value" [style.color]="med.hasLowStock ? 'var(--color-danger)' : 'inherit'">
+              {{ getStockQtyString(med) }}
+            </div>
+          </div>
+          <div style="grid-column: span 2;">
+            <div class="detail-label">Manufacturer</div>
+            <div class="detail-value">{{ med.manufacturer }}</div>
+          </div>
+          <div style="grid-column: span 2;">
+            <div class="detail-label">Rack Location</div>
+            <div class="detail-value">{{ med.rackLocation }}</div>
+          </div>
+        </div>
+
+        <!-- Prices Row -->
+        <div class="med-prices">
+          <div>
+            <div class="detail-label">Wholesale Cost</div>
+            <div class="price-pill" style="color: var(--text-muted); font-size: 0.85rem;">
+              @if (med.batches.length === 1) {
+                ₹{{ med.batches[0].costPrice | number:'1.2-2' }}
+              } @else {
+                ₹{{ med.batches[0].costPrice | number:'1.2-2' }} ...
+              }
+              <span style="font-size: 0.7rem; color: var(--text-muted);">{{ isTabletOrCapsule(med) ? '/ strip' : '/ unit' }}</span>
+            </div>
+          </div>
+          <div style="text-align: right;">
+            <div class="detail-label">MRP (Max Retail Price)</div>
+            <div class="price-pill" style="color: var(--color-primary);">
+              @if (med.minSellingPrice === med.maxSellingPrice) {
+                ₹{{ med.minSellingPrice | number:'1.2-2' }}
+              } @else {
+                ₹{{ med.minSellingPrice | number:'1.2-2' }} - ₹{{ med.maxSellingPrice | number:'1.2-2' }}
+              }
+              <span style="font-size: 0.7rem; color: var(--color-primary);">{{ isTabletOrCapsule(med) ? '/ strip' : '/ unit' }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Action Row: Show Batches Modal Trigger -->
+        <div class="med-footer" style="padding-top: 12px; border-top: 1px solid var(--border-color); display: flex; justify-content: stretch; margin-top: auto;">
+          <button class="btn btn-primary" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 6px; font-weight: 700; padding: 10px;" (click)="openBatchesModal(med)">
+            📋 Show Batches ({{ med.batches.length }})
+          </button>
+        </div>
+      </div>
+    }
+  </div>
+}
+
+
+<!-- Stock-In / Edit frosted popup modal -->
+@if (isModalOpen()) {
+  <div class="modal-backdrop">
+    <div class="glass-panel modal-card">
+      <div class="modal-header">
+        <h2>{{ editingMedicineId() ? '✏️ Edit Formulation Record' : '➕ Stock-In New Formulation' }}</h2>
+        <button class="btn-close" (click)="closeModal()">×</button>
+      </div>
+
+      <form (submit)="onSave($event)" style="display: flex; flex-direction: column; gap: 14px;">
+        <!-- Autocomplete Master Catalog Search Widget -->
+        @if (!editingMedicineId()) {
+          <div class="input-group" style="position: relative; margin-bottom: 8px; background: rgba(20, 184, 166, 0.05); padding: 12px; border-radius: var(--radius-sm); border: 1px dashed rgba(20, 184, 166, 0.3);">
+            <label class="input-label" style="color: var(--color-primary); font-weight: 700; display: flex; align-items: center; gap: 6px;">
+              🔍 Search Product from Master Directory
+            </label>
+            <input id="inv-master-search" type="text" class="form-input" 
+                   [value]="masterSearchQuery()" 
+                   (input)="masterSearchQuery.set($any($event.target).value); isMasterDropdownOpen.set(true)" 
+                   (keydown.enter)="focusInventoryInput('name')"
+                   placeholder="Type product name or SKU code to autofill details...">
+            
+            <!-- Autocomplete list popup -->
+            @if (isMasterDropdownOpen() && filteredMastersCatalog().length > 0) {
+              <div class="autocomplete-dropdown">
+                @for (master of filteredMastersCatalog(); track master.id) {
+                  <div class="autocomplete-item" (click)="onSelectMaster(master)">
+                    <div style="font-weight: 700; font-size: 0.88rem; color: var(--text-heading);">{{ master.productName }}</div>
+                    <div style="font-size: 0.72rem; color: var(--text-muted); display: flex; gap: 8px; margin-top: 2px; flex-wrap: wrap;">
+                      <span>SKU: {{ master.productCode }}</span>
+                      <span>| Mfg: {{ master.companyName }}</span>
+                      <span>| Slab: {{ master.cgst + master.sgst }}%</span>
+                      <span class="badge" style="padding: 1px 6px; font-size: 0.65rem; background: rgba(59,130,246,0.1); color: #60a5fa; border: 1px solid rgba(59,130,246,0.2);">
+                        {{ master.category }}
+                      </span>
+                    </div>
+                  </div>
+                }
+              </div>
+            } @else if (isMasterDropdownOpen() && masterSearchQuery().length >= 2 && filteredMastersCatalog().length === 0) {
+              <div class="autocomplete-dropdown" style="padding: 14px; font-size: 0.8rem; color: var(--text-muted); text-align: center;">
+                No matching products found in the Master Directory.<br>Fill fields manually or register it in the Master screen.
+              </div>
+            }
+          </div>
+        }
+
+        <div class="modal-body-horizontal">
+          <div class="modal-col">
+            <div class="input-group">
+              <label class="input-label">Product Name *</label>
+              <input id="inv-field-name" type="text" class="form-input" [value]="formName()" (input)="formName.set($any($event.target).value)" (keydown.enter)="onInventoryEnter($event, 'name')" (keydown.escape)="onInventoryEscape($event, 'name')" placeholder="e.g. Paracetamol 500mg" required>
+            </div>
+            <div class="input-group">
+              <label class="input-label">Generic Formulation *</label>
+              <input id="inv-field-genericName" type="text" class="form-input" [value]="formGenericName()" (input)="formGenericName.set($any($event.target).value)" (keydown.enter)="onInventoryEnter($event, 'genericName')" (keydown.escape)="onInventoryEscape($event, 'genericName')" placeholder="e.g. Acetaminophen" required>
+            </div>
+            <div class="input-group">
+              <label class="input-label">SKU Code *</label>
+              <input id="inv-field-sku" type="text" class="form-input" [value]="formSku()" (input)="formSku.set($any($event.target).value)" (keydown.enter)="onInventoryEnter($event, 'sku')" (keydown.escape)="onInventoryEscape($event, 'sku')" placeholder="e.g. MED-PARA-500" required>
+            </div>
+            <div class="input-group">
+              <label class="input-label">Manufacturer Company</label>
+              <input id="inv-field-manufacturer" type="text" class="form-input" [value]="formManufacturer()" (input)="formManufacturer.set($any($event.target).value)" (keydown.enter)="onInventoryEnter($event, 'manufacturer')" (keydown.escape)="onInventoryEscape($event, 'manufacturer')" placeholder="e.g. GlaxoSmithKline">
+            </div>
+            <div class="input-group">
+              <label class="input-label">Rack Location</label>
+              <input id="inv-field-rackLocation" type="text" class="form-input" [value]="formRackLocation()" (input)="formRackLocation.set($any($event.target).value)" (keydown.enter)="onInventoryEnter($event, 'rackLocation')" (keydown.escape)="onInventoryEscape($event, 'rackLocation')" placeholder="e.g. A-12 or Fridge-1">
+            </div>
+            <div class="input-group">
+              <label class="input-label">HSN Code *</label>
+              <input id="inv-field-hsnCode" type="text" class="form-input" [value]="formHsnCode()" (input)="formHsnCode.set($any($event.target).value)" (keydown.enter)="onInventoryEnter($event, 'hsnCode')" (keydown.escape)="onInventoryEscape($event, 'hsnCode')" placeholder="e.g. 3004" required>
+            </div>
+            <div class="input-group">
+              <label class="input-label">GST Rate Slab *</label>
+              <select id="inv-field-gstRate" class="form-input" [value]="formGstRate()" (change)="formGstRate.set(+$any($event.target).value)" (keydown.enter)="onInventoryEnter($event, 'gstRate')" (keydown.escape)="onInventoryEscape($event, 'gstRate')">
+                <option value="0">0% (Nil Rated)</option>
+                <option value="5">5% (Life Saving)</option>
+                <option value="12">12% (Standard Formulation)</option>
+                <option value="18">18% (Cosmetic / OTC)</option>
+                <option value="28">28% (Luxury)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="modal-col">
+            <div class="input-group">
+              <label class="input-label">Batch Reference *</label>
+              <input id="inv-field-batch" type="text" class="form-input" [value]="formBatchNumber()" (input)="formBatchNumber.set($any($event.target).value)" (keydown.enter)="onInventoryEnter($event, 'batch')" (keydown.escape)="onInventoryEscape($event, 'batch')" placeholder="e.g. B2026-X" required>
+            </div>
+            <div class="input-group">
+              <label class="input-label">Expiry Date *</label>
+              <input id="inv-field-expiry" type="text" class="form-input" [value]="formatDateToMMYYYY(formExpiryDate())" (input)="onExpiryInput($event)" placeholder="MM/YYYY" maxlength="7" (keydown.enter)="onInventoryEnter($event, 'expiry')" (keydown.escape)="onInventoryEscape($event, 'expiry')" required>
+            </div>
+            
+            <div [class.modal-grid-2]="isFormTabletOrCapsule()" style="gap: 12px; margin-bottom: 0;">
+              <div class="input-group" style="margin-bottom: 0;">
+                <label class="input-label">{{ isFormTabletOrCapsule() ? 'Stock Strips *' : 'Stock Packs *' }}</label>
+                <input id="inv-field-strips" type="number" class="form-input" [value]="formStrips()" (input)="onFormStripsChange($any($event.target).value)" (keydown.enter)="onInventoryEnter($event, 'strips')" (keydown.escape)="onInventoryEscape($event, 'strips')" min="0" placeholder="e.g. 10" required>
+              </div>
+              @if (isFormTabletOrCapsule()) {
+                <div class="input-group" style="margin-bottom: 0;">
+                  <label class="input-label">Stock Loose *</label>
+                  <input id="inv-field-loose" type="number" class="form-input" [value]="formLoose()" (input)="onFormLooseChange($any($event.target).value)" (keydown.enter)="onInventoryEnter($event, 'loose')" (keydown.escape)="onInventoryEscape($event, 'loose')" min="0" placeholder="e.g. 0" required>
+                </div>
+              }
+            </div>
+
+            <div class="input-group">
+              <label class="input-label">{{ isFormTabletOrCapsule() ? 'Reorder Limit (strips) *' : 'Reorder Limit (packs) *' }}</label>
+              <input id="inv-field-reorder" type="number" class="form-input" [value]="formReorderLevel()" (input)="formReorderLevel.set(+$any($event.target).value)" (keydown.enter)="onInventoryEnter($event, 'reorder')" (keydown.escape)="onInventoryEscape($event, 'reorder')" min="1" placeholder="e.g. 20" required>
+            </div>
+            
+            <div style="font-size: 0.75rem; color: var(--color-primary); font-weight: 700; margin-top: 4px; margin-bottom: 4px; padding: 6px 10px; background: rgba(20, 184, 166, 0.08); border: 1px solid rgba(20, 184, 166, 0.2); border-radius: var(--radius-sm); text-align: center;">
+              @if (isFormTabletOrCapsule()) {
+                Total calculated stock size: {{ formStockLevel() }} tablet(s) (Pack Size: {{ getFormPackSize() }} per strip)
+              } @else {
+                Total calculated stock size: {{ formStockLevel() }} pack(s)
+              }
+            </div>
+
+            <div class="input-group">
+              <label class="input-label">{{ isFormTabletOrCapsule() ? 'Wholesale Cost (₹ per strip) *' : 'Wholesale Cost (₹ per pack) *' }}</label>
+              <input id="inv-field-cost" type="number" step="0.01" class="form-input" [value]="formCostPrice()" (input)="formCostPrice.set(+$any($event.target).value)" (keydown.enter)="onInventoryEnter($event, 'cost')" (keydown.escape)="onInventoryEscape($event, 'cost')" min="0.01" placeholder="e.g. 150.00" required>
+            </div>
+            <div class="input-group">
+              <label class="input-label">{{ isFormTabletOrCapsule() ? 'MRP - Max Retail Price (₹ per strip) *' : 'MRP - Max Retail Price (₹ per pack) *' }}</label>
+              <input id="inv-field-selling" type="number" step="0.01" class="form-input" [value]="formSellingPrice()" (input)="formSellingPrice.set(+$any($event.target).value)" (keydown.enter)="onInventoryEnter($event, 'selling')" (keydown.escape)="onInventoryEscape($event, 'selling')" min="0.01" placeholder="e.g. 300.00" required>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" (click)="closeModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Product</button>
+        </div>
+      </form>
+    </div>
+  </div>
+}
+
+<!-- Grouped Batches widescreen popup modal -->
+@if (isBatchesModalOpen() && selectedGroupedMed()) {
+  <div class="modal-backdrop">
+    <div class="glass-panel modal-card" style="width: 950px; max-width: 95%; padding: 30px;">
+      <div class="modal-header">
+        <div>
+          <h2 style="color: var(--color-primary); display: flex; align-items: center; gap: 8px; margin: 0;">
+            📋 Batch-Wise Stock Registry
+          </h2>
+          <div style="font-size: 0.85rem; color: var(--text-muted); margin-top: 4px;">
+            Formulation: <strong>{{ selectedGroupedMed()!.name }}</strong> | SKU: <strong>{{ selectedGroupedMed()!.sku }}</strong>
+          </div>
+        </div>
+        <button class="btn-close" (click)="closeBatchesModal()">×</button>
+      </div>
+
+      <div style="max-height: 55vh; overflow-y: auto; margin-top: 10px;">
+        <table class="receipt-table" style="width: 100%; border-collapse: collapse; font-family: inherit; font-size: 0.88rem; color: var(--text-main);">
+          <thead>
+            <tr style="border-bottom: 2px solid var(--border-color); text-align: left; color: var(--text-muted); font-weight: 700;">
+              <th style="padding: 10px 8px;">Batch Number</th>
+              <th style="padding: 10px 8px;">Expiry Date</th>
+              <th style="padding: 10px 8px;">Rack Location</th>
+              <th style="padding: 10px 8px; text-align: right;">Available Stock</th>
+              <th style="padding: 10px 8px; text-align: right;">Wholesale Cost</th>
+              <th style="padding: 10px 8px; text-align: right;">Selling MRP</th>
+              <th style="padding: 10px 8px; text-align: center;">Status</th>
+              @if (auth.hasRole(['ADMIN', 'INVENTORY_MANAGER', 'PHARMACIST'])) {
+                <th style="padding: 10px 8px; text-align: center;">Actions</th>
+              }
+            </tr>
+          </thead>
+          <tbody>
+            @for (batch of selectedGroupedMed()!.batches; track batch.id) {
+              <tr style="border-bottom: 1px solid var(--border-color); transition: background 0.2s;" class="autocomplete-item-hover">
+                <td style="padding: 12px 8px; font-weight: 700; color: var(--text-heading);">
+                  {{ batch.batchNumber }}
+                </td>
+                <td style="padding: 12px 8px;">
+                  {{ batch.expiryDate | date:'MM/yyyy' }}
+                </td>
+                <td style="padding: 12px 8px; color: var(--text-muted);">
+                  {{ batch.rackLocation || 'Unassigned' }}
+                </td>
+                <td style="padding: 12px 8px; text-align: right; font-weight: 600;">
+                  {{ getStockQtyString(batch) }}
+                </td>
+                <td style="padding: 12px 8px; text-align: right; color: var(--text-muted);">
+                  ₹{{ batch.costPrice | number:'1.2-2' }}
+                </td>
+                <td style="padding: 12px 8px; text-align: right; font-weight: bold; color: var(--color-primary);">
+                  ₹{{ batch.sellingPrice | number:'1.2-2' }}
+                </td>
+                <td style="padding: 12px 8px; text-align: center;">
+                  @if (isExpired(batch.expiryDate)) {
+                    <span class="badge badge-danger" style="font-size: 0.72rem;">Expired</span>
+                  } @else if (isExpiringSoon(batch.expiryDate)) {
+                    <span class="badge badge-warning" style="font-size: 0.72rem;">Expiring Soon</span>
+                  } @else {
+                    <span class="badge badge-success" style="font-size: 0.72rem;">Stable</span>
+                  }
+                </td>
+                @if (auth.hasRole(['ADMIN', 'INVENTORY_MANAGER', 'PHARMACIST'])) {
+                  <td style="padding: 6px 8px; text-align: center; white-space: nowrap;">
+                    <button class="btn btn-secondary" style="padding: 4px 8px; font-size: 0.75rem; margin-right: 6px;" (click)="openEditModal(batch); closeBatchesModal()">
+                      ✏️ Edit
+                    </button>
+                    <button class="btn btn-danger" style="padding: 4px 8px; font-size: 0.75rem; background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.2); color:#f87171;" (click)="onDelete(batch.id!); closeBatchesModal()">
+                      🗑️ Delete
+                    </button>
+                  </td>
+                }
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <div class="modal-footer" style="margin-top: 15px;">
+        <button type="button" class="btn btn-secondary" (click)="closeBatchesModal()">Close Window</button>
+      </div>
+    </div>
+  </div>
+}

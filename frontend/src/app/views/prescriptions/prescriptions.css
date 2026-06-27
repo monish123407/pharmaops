@@ -1,0 +1,92 @@
+/* Prescription Hub Styles */
+.prescription-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.prescription-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+  gap: 20px;
+}
+
+.presc-card {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.presc-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 14px;
+}
+
+.presc-patient {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--text-heading);
+}
+
+.presc-meta {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+.presc-doctor {
+  font-size: 0.85rem;
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
+.presc-body {
+  flex-grow: 1;
+}
+
+.presc-items-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.presc-item {
+  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.01);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.85rem;
+}
+
+.presc-item-name {
+  font-weight: 700;
+  color: var(--text-heading);
+}
+
+.presc-item-dosage {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  margin-top: 2px;
+}
+
+.presc-item-qty {
+  font-weight: 600;
+  color: var(--color-secondary);
+}
+
+.presc-notes {
+  background: rgba(0, 0, 0, 0.15);
+  padding: 12px;
+  border-radius: var(--radius-sm);
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  border-left: 3px solid var(--border-color);
+}

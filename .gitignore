@@ -1,0 +1,42 @@
+# ───────────────────────────────────────────
+#  PharmaOps – .gitignore
+# ───────────────────────────────────────────
+
+# macOS
+.DS_Store
+**/.DS_Store
+.AppleDouble
+.LSOverride
+
+# ── Backend ──────────────────────────────────
+backend/target/
+backend/data/           # H2 database files – never commit live DB
+backend/.mvn/wrapper/maven-wrapper.jar
+
+# ── Frontend ─────────────────────────────────
+frontend/node_modules/
+frontend/.angular/
+frontend/dist/
+
+# ── Electron / Desktop ────────────────────────
+node_modules/
+dist-desktop/
+build/
+jre/                   # bundled JRE – large binary, not for git
+*.dmg
+*.exe
+*.AppImage
+
+# ── Logs ─────────────────────────────────────
+data/
+*.log
+
+# ── IDE ──────────────────────────────────────
+.vscode/
+.idea/
+*.iml
+
+# ── Misc ─────────────────────────────────────
+package-lock.json
+frontend/package-lock.json
+scratch/

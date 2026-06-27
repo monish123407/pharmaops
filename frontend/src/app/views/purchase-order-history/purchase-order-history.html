@@ -1,0 +1,197 @@
+<div class="poh-page">
+
+  <!-- ════════════════════════════════════════════════════
+       PAGE HEADER
+  ════════════════════════════════════════════════════ -->
+  <div class="poh-header">
+    <div class="poh-header-left">
+      <h2 class="poh-title">📋 Purchase Order History</h2>
+      <p class="poh-subtitle">Track, filter, and audit restock orders placed with wholesalers</p>
+    </div>
+    <div class="poh-header-right">
+      <button class="btn-new-order" routerLink="/purchase/order">
+        🛒 Place Restock Order
+      </button>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════
+       FILTER TOOLBAR CARD
+  ════════════════════════════════════════════════════ -->
+  <div class="filter-card">
+    <div class="filter-grid">
+      
+      <!-- Text Search Box -->
+      <div class="filter-group text-search-group">
+        <label class="filter-label">🔍 Search Orders</label>
+        <div class="input-wrapper">
+          <input
+            type="text"
+            class="filter-input"
+            placeholder="Search wholesaler, SKU, medicine…"
+            [value]="searchText()"
+            (input)="searchText.set($any($event.target).value)"
+          />
+          @if (searchText().length > 0) {
+            <button class="clear-input-btn" (click)="searchText.set('')">✕</button>
+          }
+        </div>
+      </div>
+
+      <!-- Date Range: Start Date -->
+      <div class="filter-group">
+        <label class="filter-label">📅 From Date</label>
+        <input
+          type="date"
+          class="filter-input date-input"
+          [value]="startDate()"
+          (change)="startDate.set($any($event.target).value)"
+        />
+      </div>
+
+      <!-- Date Range: End Date -->
+      <div class="filter-group">
+        <label class="filter-label">📅 To Date</label>
+        <input
+          type="date"
+          class="filter-input date-input"
+          [value]="endDate()"
+          (change)="endDate.set($any($event.target).value)"
+        />
+      </div>
+
+      <!-- Status Toggle Selector -->
+      <div class="filter-group status-group">
+        <label class="filter-label">🛡️ Status Filter</label>
+        <div class="status-pills">
+          <button 
+            class="pill-btn" 
+            [class.active]="statusFilter() === 'ALL'" 
+            (click)="statusFilter.set('ALL')">All</button>
+          <button 
+            class="pill-btn pending" 
+            [class.active]="statusFilter() === 'PENDING'" 
+            (click)="statusFilter.set('PENDING')">Pending</button>
+          <button 
+            class="pill-btn received" 
+            [class.active]="statusFilter() === 'RECEIVED'" 
+            (click)="statusFilter.set('RECEIVED')">Received</button>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Active Filter Summary & Clear Button -->
+    @if (searchText().length > 0 || startDate().length > 0 || endDate().length > 0 || statusFilter() !== 'ALL') {
+      <div class="filter-footer">
+        <span class="active-indicators">
+          Active Filters:
+          @if (searchText()) { <span class="indicator-chip">Text: "{{ searchText() }}"</span> }
+          @if (startDate()) { <span class="indicator-chip">From: {{ startDate() }}</span> }
+          @if (endDate()) { <span class="indicator-chip">To: {{ endDate() }}</span> }
+          @if (statusFilter() !== 'ALL') { <span class="indicator-chip">Status: {{ statusFilter() }}</span> }
+        </span>
+        <button class="btn-clear-all" (click)="clearFilters()">🧹 Clear Filters</button>
+      </div>
+    }
+  </div>
+
+  <!-- ════════════════════════════════════════════════════
+       ORDERS HISTORY TABLE
+  ════════════════════════════════════════════════════ -->
+  <div class="table-card">
+    
+    @if (filteredOrders().length === 0) {
+      <div class="empty-state">
+        <div class="empty-icon">📭</div>
+        <h4>No purchase orders found</h4>
+        <p>Try modifying your text search, date range, or status filters above.</p>
+        @if (searchText().length > 0 || startDate().length > 0 || endDate().length > 0 || statusFilter() !== 'ALL') {
+          <button class="btn-reset-filters" (click)="clearFilters()">Reset All Filters</button>
+        }
+      </div>
+    } @else {
+      <div class="table-wrapper">
+        <table class="poh-table">
+          <thead>
+            <tr>
+              <th style="width: 170px;">Order Date</th>
+              <th style="width: 220px;">Wholesaler / Supplier</th>
+              <th>Ordered Formulations (Medicines)</th>
+              <th class="col-center" style="width: 100px;">Total Items</th>
+              <th class="col-center" style="width: 140px;">Status</th>
+              <th class="col-center" style="width: 200px;">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (order of filteredOrders(); track order.id) {
+              <tr [class.status-received-row]="order.status === 'RECEIVED'">
+                
+                <!-- Order Date -->
+                <td class="date-cell">
+                  <span class="date-text">{{ formatDate(order.orderDate) }}</span>
+                </td>
+
+                <!-- Wholesaler Name -->
+                <td class="supplier-cell">
+                  <div class="supplier-name">🏢 {{ order.wholesalerName }}</div>
+                  <div class="order-id">ID: {{ order.id.slice(0, 8) }}...</div>
+                </td>
+
+                <!-- Ordered Items List -->
+                <td class="items-cell">
+                  <div class="items-grid">
+                    @for (item of order.items; track item.sku) {
+                      <div class="item-chip" [title]="'SKU: ' + item.sku">
+                        <span class="item-name">{{ item.medicineName }}</span>
+                        <span class="item-qty-badge">{{ item.quantityOrdered }} {{ item.unit }}</span>
+                      </div>
+                    }
+                  </div>
+                </td>
+
+                <!-- Total Item Count -->
+                <td class="col-center font-bold">
+                  {{ order.items.length }}
+                </td>
+
+                <!-- Status Badge -->
+                <td class="col-center">
+                  <span class="status-badge" 
+                        [class.status-pending]="order.status === 'PENDING'" 
+                        [class.status-received]="order.status === 'RECEIVED'">
+                    {{ order.status }}
+                  </span>
+                </td>
+
+                <!-- Action Controls -->
+                <td class="col-center">
+                  <div class="actions-wrapper">
+                    @if (order.status === 'PENDING') {
+                      <button 
+                        class="btn-action-success" 
+                        (click)="markReceived(order.id)" 
+                        title="Mark this order as received and cataloged">
+                        ✓ Mark Received
+                      </button>
+                    } @else {
+                      <span class="received-placeholder">✓ Order Received</span>
+                    }
+                    <button 
+                      class="btn-action-delete" 
+                      (click)="deleteOrder(order.id)" 
+                      title="Delete order records permanently">
+                      🗑 Delete
+                    </button>
+                  </div>
+                </td>
+
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </div>
+
+</div>

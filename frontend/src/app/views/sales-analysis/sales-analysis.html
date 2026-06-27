@@ -1,0 +1,497 @@
+<div class="sales-analysis-container">
+  
+  <!-- Printable Page Header -->
+  <div class="print-report-header">
+    <div class="print-title">Arpita Medical — Enterprise Sales Analysis Report</div>
+    <div class="print-meta-row">
+      <div>Report Period: {{ startDate() | date:'mediumDate' }} to {{ endDate() | date:'mediumDate' }}</div>
+      <div>Generated On: {{ currentDate | date:'medium' }} | Cashier: Admin Monish</div>
+    </div>
+  </div>
+
+  <!-- Glassmorphic Filters & Controls Toolbar -->
+  <div class="filter-panel no-print">
+    <div class="preset-row">
+      <div class="preset-buttons">
+        <button class="btn-preset" [class.active]="activePreset() === 'today'" (click)="quickSelect('today')">Today</button>
+        <button class="btn-preset" [class.active]="activePreset() === 'yesterday'" (click)="quickSelect('yesterday')">Yesterday</button>
+        <button class="btn-preset" [class.active]="activePreset() === 'thisWeek'" (click)="quickSelect('thisWeek')">This Week</button>
+        <button class="btn-preset" [class.active]="activePreset() === 'thisMonth'" (click)="quickSelect('thisMonth')">This Month</button>
+        <button class="btn-preset" [class.active]="activePreset() === 'thisQuarter'" (click)="quickSelect('thisQuarter')">This Quarter</button>
+        <button class="btn-preset" [class.active]="activePreset() === 'thisYear'" (click)="quickSelect('thisYear')">This Year</button>
+      </div>
+
+      <div class="custom-range">
+        <div class="filter-group">
+          <input type="date" class="input-date" [ngModel]="startDate()" (ngModelChange)="startDate.set($event)">
+        </div>
+        <span class="control-label" style="margin-top: 0;">to</span>
+        <div class="filter-group">
+          <input type="date" class="input-date" [ngModel]="endDate()" (ngModelChange)="endDate.set($event)">
+        </div>
+        <button class="btn-apply" (click)="applyCustomRange()">Apply</button>
+      </div>
+    </div>
+
+    <!-- Advanced Table & Card Filter Dropdowns -->
+    <div class="dropdown-filters">
+      <div class="filter-group">
+        <label class="filter-label">Search Formulation</label>
+        <input type="text" class="input-search" placeholder="Filter product name or SKU..." [ngModel]="searchText()" (ngModelChange)="searchText.set($event); currentPage.set(1)">
+      </div>
+
+      <div class="filter-group">
+        <label class="filter-label">Product Category</label>
+        <select class="select-compact" [ngModel]="selectedCategory()" (ngModelChange)="selectedCategory.set($event); currentPage.set(1)">
+          <option value="ALL">All Categories</option>
+          @for (cat of categories(); track cat) {
+            <option [value]="cat">{{ cat }}</option>
+          }
+        </select>
+      </div>
+
+      <div class="filter-group">
+        <label class="filter-label">Grid Performance Status</label>
+        <select class="select-compact" [ngModel]="selectedStatus()" (ngModelChange)="selectedStatus.set($event); currentPage.set(1)">
+          <option value="ALL">All Performance States</option>
+          <option value="Best Seller">Best Seller</option>
+          <option value="Stable">Stable</option>
+          <option value="Slow Moving">Slow Moving</option>
+          <option value="Low Stock">Low Stock</option>
+        </select>
+      </div>
+
+      <div class="filter-group">
+        <button class="btn-reset" (click)="resetFilters()">Reset Dashboard</button>
+      </div>
+    </div>
+  </div>
+
+  @if (loading()) {
+    <div class="loading-overlay-blur">
+      <div class="spinner"></div>
+      <div>Processing transaction ledgers and calculating margins...</div>
+    </div>
+  } @else if (summary()) {
+    
+    <!-- 8 Symmetrical KPI Summary Cards Grid -->
+    <div class="kpi-grid-widescreen">
+      
+      <!-- Card 1: Gross Sales -->
+      <div class="metric-card sales">
+        <div class="metric-header">
+          <span class="metric-label">Gross Sales</span>
+          <span class="metric-icon">💰</span>
+        </div>
+        <div class="metric-value">₹{{ (summary().grossSales.currentValue || 0) | number:'1.2-2' }}</div>
+        <div class="metric-footer">
+          <span class="trend-badge" [class.up]="summary().grossSales.trendDirection === 'UP'" [class.down]="summary().grossSales.trendDirection === 'DOWN'" [class.flat]="summary().grossSales.trendDirection === 'FLAT'">
+            {{ summary().grossSales.trendDirection === 'UP' ? '▲' : summary().grossSales.trendDirection === 'DOWN' ? '▼' : '■' }}
+            {{ summary().grossSales.growthPercentage }}%
+          </span>
+          <span>vs previous period</span>
+        </div>
+      </div>
+
+      <!-- Card 2: Net Revenue -->
+      <div class="metric-card revenue">
+        <div class="metric-header">
+          <span class="metric-label">Net Revenue</span>
+          <span class="metric-icon">📈</span>
+        </div>
+        <div class="metric-value">₹{{ (summary().netRevenue.currentValue || 0) | number:'1.2-2' }}</div>
+        <div class="metric-footer">
+          <span class="trend-badge" [class.up]="summary().netRevenue.trendDirection === 'UP'" [class.down]="summary().netRevenue.trendDirection === 'DOWN'" [class.flat]="summary().netRevenue.trendDirection === 'FLAT'">
+            {{ summary().netRevenue.trendDirection === 'UP' ? '▲' : summary().netRevenue.trendDirection === 'DOWN' ? '▼' : '■' }}
+            {{ summary().netRevenue.growthPercentage }}%
+          </span>
+          <span>after discounts</span>
+        </div>
+      </div>
+
+      <!-- Card 3: Net Profit -->
+      <div class="metric-card profit">
+        <div class="metric-header">
+          <span class="metric-label">Net Profit</span>
+          <span class="metric-icon">🍀</span>
+        </div>
+        <div class="metric-value">₹{{ (summary().totalProfit.currentValue || 0) | number:'1.2-2' }}</div>
+        <div class="metric-footer">
+          <span class="trend-badge" [class.up]="summary().totalProfit.trendDirection === 'UP'" [class.down]="summary().totalProfit.trendDirection === 'DOWN'" [class.flat]="summary().totalProfit.trendDirection === 'FLAT'">
+            {{ summary().totalProfit.trendDirection === 'UP' ? '▲' : summary().totalProfit.trendDirection === 'DOWN' ? '▼' : '■' }}
+            {{ summary().totalProfit.growthPercentage }}%
+          </span>
+          <span>margin splits</span>
+        </div>
+      </div>
+
+      <!-- Card 4: Average Order Value (AOV) -->
+      <div class="metric-card aov">
+        <div class="metric-header">
+          <span class="metric-label">Average Order</span>
+          <span class="metric-icon">🛒</span>
+        </div>
+        <div class="metric-value">₹{{ (summary().avgOrderValue.currentValue || 0) | number:'1.2-2' }}</div>
+        <div class="metric-footer">
+          <span class="trend-badge" [class.up]="summary().avgOrderValue.trendDirection === 'UP'" [class.down]="summary().avgOrderValue.trendDirection === 'DOWN'" [class.flat]="summary().avgOrderValue.trendDirection === 'FLAT'">
+            {{ summary().avgOrderValue.trendDirection === 'UP' ? '▲' : summary().avgOrderValue.trendDirection === 'DOWN' ? '▼' : '■' }}
+            {{ summary().avgOrderValue.growthPercentage }}%
+          </span>
+          <span>basket value</span>
+        </div>
+      </div>
+
+      <!-- Card 5: Total Invoices -->
+      <div class="metric-card invoices">
+        <div class="metric-header">
+          <span class="metric-label">Total Invoices</span>
+          <span class="metric-icon">🧾</span>
+        </div>
+        <div class="metric-value">{{ (summary().totalInvoices.currentValue || 0) | number:'1.0-0' }}</div>
+        <div class="metric-footer">
+          <span class="trend-badge" [class.up]="summary().totalInvoices.trendDirection === 'UP'" [class.down]="summary().totalInvoices.trendDirection === 'DOWN'" [class.flat]="summary().totalInvoices.trendDirection === 'FLAT'">
+            {{ summary().totalInvoices.trendDirection === 'UP' ? '▲' : summary().totalInvoices.trendDirection === 'DOWN' ? '▼' : '■' }}
+            {{ summary().totalInvoices.growthPercentage }}%
+          </span>
+          <span>checkouts completed</span>
+        </div>
+      </div>
+
+      <!-- Card 6: Unique Customers -->
+      <div class="metric-card customers">
+        <div class="metric-header">
+          <span class="metric-label">Unique Patients</span>
+          <span class="metric-icon">👥</span>
+        </div>
+        <div class="metric-value">{{ (summary().uniqueCustomers.currentValue || 0) | number:'1.0-0' }}</div>
+        <div class="metric-footer">
+          <span class="trend-badge" [class.up]="summary().uniqueCustomers.trendDirection === 'UP'" [class.down]="summary().uniqueCustomers.trendDirection === 'DOWN'" [class.flat]="summary().uniqueCustomers.trendDirection === 'FLAT'">
+            {{ summary().uniqueCustomers.trendDirection === 'UP' ? '▲' : summary().uniqueCustomers.trendDirection === 'DOWN' ? '▼' : '■' }}
+            {{ summary().uniqueCustomers.growthPercentage }}%
+          </span>
+          <span>active profiles</span>
+        </div>
+      </div>
+
+      <!-- Card 7: UPI & Digital Share -->
+      <div class="metric-card digital">
+        <div class="metric-header">
+          <span class="metric-label">Digital Share</span>
+          <span class="metric-icon">📱</span>
+        </div>
+        <div class="metric-value">{{ (summary().digitalShare.currentValue || 0) | number:'1.1-1' }}%</div>
+        <div class="metric-footer">
+          <span class="trend-badge" [class.up]="summary().digitalShare.trendDirection === 'UP'" [class.down]="summary().digitalShare.trendDirection === 'DOWN'" [class.flat]="summary().digitalShare.trendDirection === 'FLAT'">
+            {{ summary().digitalShare.trendDirection === 'UP' ? '▲' : summary().digitalShare.trendDirection === 'DOWN' ? '▼' : '■' }}
+            {{ summary().digitalShare.growthPercentage }}%
+          </span>
+          <span>UPI / card volumes</span>
+        </div>
+      </div>
+
+      <!-- Card 8: Sales Tax (GST Collected) -->
+      <div class="metric-card tax">
+        <div class="metric-header">
+          <span class="metric-label">Sales Tax (GST)</span>
+          <span class="metric-icon">🏛️</span>
+        </div>
+        <div class="metric-value">₹{{ (summary().salesTax.currentValue || 0) | number:'1.2-2' }}</div>
+        <div class="metric-footer">
+          <span class="trend-badge" [class.up]="summary().salesTax.trendDirection === 'UP'" [class.down]="summary().salesTax.trendDirection === 'DOWN'" [class.flat]="summary().salesTax.trendDirection === 'FLAT'">
+            {{ summary().salesTax.trendDirection === 'UP' ? '▲' : summary().salesTax.trendDirection === 'DOWN' ? '▼' : '■' }}
+            {{ summary().salesTax.growthPercentage }}%
+          </span>
+          <span>collected tax slab</span>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Widescreen Hourly Sales Trend Line Graph -->
+    <div class="chart-container-panel">
+      <div class="chart-header">
+        <div class="chart-title">
+          <span>📈 Hourly Traffic & Billing Velocity Curve</span>
+        </div>
+        <div class="chart-controls no-print">
+          <button class="btn-chart-tab" [class.active]="activeChartMetric() === 'sales'" (click)="activeChartMetric.set('sales')">Revenue (₹)</button>
+          <button class="btn-chart-tab" [class.active]="activeChartMetric() === 'profit'" (click)="activeChartMetric.set('profit')">Estimated Profit (₹)</button>
+          <button class="btn-chart-tab" [class.active]="activeChartMetric() === 'orders'" (click)="activeChartMetric.set('orders')">Invoices</button>
+        </div>
+      </div>
+      <div class="chart-body">
+        <svg viewBox="0 0 1000 300" class="svg-chart">
+          <defs>
+            <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="var(--color-primary)" stop-opacity="0.4"/>
+              <stop offset="100%" stop-color="var(--color-primary)" stop-opacity="0.0"/>
+            </linearGradient>
+            <linearGradient id="chartGradientProfit" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="var(--color-success)" stop-opacity="0.4"/>
+              <stop offset="100%" stop-color="var(--color-success)" stop-opacity="0.0"/>
+            </linearGradient>
+          </defs>
+
+          <!-- Grid Lines -->
+          <line x1="30" y1="40" x2="970" y2="40" class="grid-line"></line>
+          <line x1="30" y1="95" x2="970" y2="95" class="grid-line"></line>
+          <line x1="30" y1="150" x2="970" y2="150" class="grid-line"></line>
+          <line x1="30" y1="205" x2="970" y2="205" class="grid-line"></line>
+          <line x1="30" y1="260" x2="970" y2="260" class="axis-line"></line>
+
+          <!-- Gradient Polygon area under the curve -->
+          @if (activeChartMetric() === 'profit') {
+            <polygon [attr.points]="lineChartFillPoints()" class="chart-polygon-gradient-profit"></polygon>
+          } @else {
+            <polygon [attr.points]="lineChartFillPoints()" class="chart-polygon-gradient"></polygon>
+          }
+
+          <!-- Glowing Line path -->
+          <polyline [attr.points]="lineChartPoints()" 
+                    [class.chart-polyline]="activeChartMetric() !== 'profit'" 
+                    [class.chart-polyline-profit]="activeChartMetric() === 'profit'">
+          </polyline>
+
+          <!-- Interactive Hover Node Tooltips -->
+          @for (pt of chartHoverCircles(); track $index) {
+            <circle [attr.cx]="pt.x" 
+                    [attr.cy]="pt.y" 
+                    r="5" 
+                    [class.sales]="activeChartMetric() !== 'profit'" 
+                    [class.profit]="activeChartMetric() === 'profit'" 
+                    class="chart-hover-circle">
+              <title>Time: {{ pt.hour }} | Value: {{ activeChartMetric() === 'orders' ? '' : '₹' }}{{ pt.value | number:'1.2-2' }}</title>
+            </circle>
+          }
+
+          <!-- X Axis Labels (every 2 hours to avoid overlap) -->
+          @for (pt of chartHoverCircles(); track $index) {
+            @if ($index % 2 === 0) {
+              <text [attr.x]="pt.x" y="280" class="axis-label">{{ pt.hour }}</text>
+            }
+          }
+        </svg>
+      </div>
+    </div>
+
+    <!-- Splits Rows (Category Bars & Payment segment list) -->
+    <div class="split-row-2col">
+      
+      <!-- Left Panel: Category Splits -->
+      <div class="chart-container-panel">
+        <div class="chart-header">
+          <div class="chart-title">📦 Formulation Category Margins Split</div>
+        </div>
+        <div class="chart-body">
+          <div class="category-list">
+            @for (cat of summary().categorySplits; track cat.category) {
+              <div class="category-bar-group">
+                <div class="category-bar-header">
+                  <span class="category-bar-title">{{ cat.category }}</span>
+                  <span class="category-bar-metrics">
+                    ₹{{ cat.salesAmount | number:'1.2-2' }} (Profit: ₹{{ cat.profitAmount | number:'1.2-2' }})
+                  </span>
+                </div>
+                <div class="bar-track">
+                  <div class="bar-fill" [style.width.%]="cat.salesSharePercentage" [title]="cat.salesSharePercentage + '% Share'"></div>
+                </div>
+              </div>
+            } @empty {
+              <div class="loading-overlay-blur">No category transactions found.</div>
+            }
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Panel: Payment shares -->
+      <div class="chart-container-panel">
+        <div class="chart-header">
+          <div class="chart-title">📱 Transaction Channels Mix (UPI vs Cash)</div>
+        </div>
+        <div class="chart-body">
+          <div class="payment-grid-list">
+            @for (pm of summary().paymentShares; track pm.paymentMethod) {
+              <div class="payment-share-row">
+                <span class="payment-badge" 
+                      [class.upi]="pm.paymentMethod === 'UPI'"
+                      [class.cash]="pm.paymentMethod === 'Cash'"
+                      [class.card]="pm.paymentMethod === 'Card'"
+                      [class.net]="pm.paymentMethod === 'Net Banking'"
+                      [class.wallet]="pm.paymentMethod === 'Wallet'">
+                  {{ pm.paymentMethod }}
+                </span>
+                <span class="payment-name">{{ pm.paymentMethod }} Volume</span>
+                <span class="payment-counts">{{ pm.transactionCount }} transactions | ₹{{ pm.salesAmount | number:'1.2-2' }}</span>
+                <span class="payment-percentage">{{ pm.percentageShare | number:'1.1-1' }}%</span>
+              </div>
+            }
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- AI Sales Forecasting engine curves -->
+    <div class="chart-container-panel">
+      <div class="chart-header">
+        <div class="chart-title">🤖 AI-Driven 7-Day Sales & Seasonal Projections</div>
+        <div class="confidence-ribbon">
+          <span>Accuracy Level: {{ summary().forecast.confidenceScore * 100 }}%</span>
+        </div>
+      </div>
+      <div class="chart-body">
+        <div class="forecast-summary-panel">
+          <div class="forecast-mini-card">
+            <div class="forecast-mini-label">Projected Next 30-Day Gross Volume</div>
+            <div class="forecast-mini-value">₹{{ summary().forecast.predictedMonthlyRevenue | number:'1.2-2' }}</div>
+          </div>
+          <div class="forecast-mini-card">
+            <div class="forecast-mini-label">Projected Operating Net Profit</div>
+            <div class="forecast-mini-value">₹{{ summary().forecast.predictedMonthlyProfit | number:'1.2-2' }}</div>
+          </div>
+        </div>
+
+        <svg viewBox="0 0 1000 280" class="svg-chart">
+          <!-- Grid Lines -->
+          <line x1="40" y1="50" x2="960" y2="50" class="grid-line"></line>
+          <line x1="40" y1="110" x2="960" y2="110" class="grid-line"></line>
+          <line x1="40" y1="170" x2="960" y2="170" class="grid-line"></line>
+          <line x1="40" y1="230" x2="960" y2="230" class="axis-line"></line>
+
+          <!-- Confidence Band Polygon -->
+          <polygon [attr.points]="forecastPoints().band" class="forecast-confidence-band"></polygon>
+
+          <!-- Forecast Line path -->
+          <polyline [attr.points]="forecastPoints().line" class="chart-polyline-forecast"></polyline>
+
+          <!-- Hover Tooltip Nodes -->
+          @for (pt of forecastPoints().points; track $index) {
+            <circle [attr.cx]="pt.x" 
+                    [attr.cy]="pt.y" 
+                    r="5" 
+                    class="chart-hover-circle profit">
+              <title>Date: {{ pt.date | date:'mediumDate' }} | Predicted: ₹{{ pt.predicted | number:'1.2-2' }} (Confidence Spread: ₹{{ pt.lower | number:'1.0-0' }} - ₹{{ pt.upper | number:'1.0-0' }})</title>
+            </circle>
+          }
+
+          <!-- Labels -->
+          @for (pt of forecastPoints().points; track $index) {
+            <text [attr.x]="pt.x" y="250" class="axis-label">{{ pt.date | date:'EEE, d' }}</text>
+          }
+        </svg>
+      </div>
+    </div>
+
+    <!-- Product Performance Data Grid -->
+    <div class="product-grid-panel">
+      <div class="grid-search-bar">
+        <div class="search-input-wrapper">
+          <span class="search-icon-inside">🔍</span>
+          <input type="text" class="input-search-grid" placeholder="Search product name or SKU..." [ngModel]="searchText()" (ngModelChange)="searchText.set($event); currentPage.set(1)">
+        </div>
+
+        <div class="table-action-buttons">
+          <button class="btn-export-excel" (click)="exportToExcel()">
+            <span>📋 Export Table to Excel/CSV</span>
+          </button>
+          <button class="btn-export-excel" style="border-color: var(--color-info); color: var(--color-info);" (click)="printReport()">
+            <span>🖨️ Print Clinical Audit Report</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="grid-table-container">
+        <table class="table-analytics">
+          <thead>
+            <tr>
+              <th (click)="toggleSort('sku')">SKU</th>
+              <th (click)="toggleSort('name')">Medicine Name</th>
+              <th class="number-cell" (click)="toggleSort('quantitySold')">Qty Sold</th>
+              <th class="number-cell" (click)="toggleSort('totalRevenue')">Revenue (₹)</th>
+              <th class="number-cell" (click)="toggleSort('averageSellingPrice')">Avg Price</th>
+              <th class="number-cell" (click)="toggleSort('totalProfit')">Profit</th>
+              <th class="number-cell" (click)="toggleSort('profitMarginPercentage')">Margin %</th>
+              <th class="number-cell" (click)="toggleSort('stockLevel')">Stock</th>
+              <th>Location</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (p of paginatedProducts(); track p.sku) {
+              <tr>
+                <td class="sku-cell">{{ p.sku }}</td>
+                <td>{{ p.name }}</td>
+                <td class="number-cell">{{ p.quantitySold }}</td>
+                <td class="number-cell">₹{{ p.totalRevenue | number:'1.2-2' }}</td>
+                <td class="number-cell">₹{{ p.averageSellingPrice | number:'1.2-2' }}</td>
+                <td class="number-cell" style="color: var(--color-success)">₹{{ p.totalProfit | number:'1.2-2' }}</td>
+                <td class="number-cell">{{ p.profitMarginPercentage | number:'1.1-1' }}%</td>
+                <td class="number-cell" [style.color]="p.stockLevel <= p.reorderLevel ? 'var(--color-danger)' : 'inherit'">
+                  {{ p.stockLevel }}
+                </td>
+                <td>{{ p.rackLocation }}</td>
+                <td>
+                  <span class="status-indicator-badge" 
+                        [class.best-seller]="p.status === 'Best Seller'"
+                        [class.low-stock]="p.status === 'Low Stock'"
+                        [class.slow-moving]="p.status === 'Slow Moving'"
+                        [class.stable]="p.status === 'Stable'">
+                    {{ p.status }}
+                  </span>
+                </td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="10" class="loading-overlay-blur" style="text-align: center;">No product sales recorded in selected timeframe.</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Pagination footer control -->
+      <div class="grid-pagination-footer no-print">
+        <div class="pagination-stats">
+          Showing {{ paginatedProducts().length }} of {{ filteredProducts().length }} items | Page {{ currentPage() }} of {{ totalPages() }}
+        </div>
+        <div class="pagination-controls">
+          <button class="btn-paginator" [disabled]="currentPage() === 1" (click)="setPage(1)">« First</button>
+          <button class="btn-paginator" [disabled]="currentPage() === 1" (click)="setPage(currentPage() - 1)">‹ Prev</button>
+          <span class="paginator-page-indicator">{{ currentPage() }}</span>
+          <button class="btn-paginator" [disabled]="currentPage() === totalPages()" (click)="setPage(currentPage() + 1)">Next ›</button>
+          <button class="btn-paginator" [disabled]="currentPage() === totalPages()" (click)="setPage(totalPages())">Last »</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Automated Business Insights & Recommendations Panel -->
+    <div class="chart-container-panel" style="margin-top: 10px;">
+      <div class="chart-header">
+        <div class="chart-title">🤖 AI-Driven Clinical Operating Recommendations</div>
+      </div>
+      <div class="chart-body">
+        <div class="insights-row">
+          @for (ins of summary().insights; track ins.title) {
+            <div class="insight-card" 
+                 [class.success]="ins.type === 'SUCCESS'"
+                 [class.warning]="ins.type === 'WARNING'"
+                 [class.info]="ins.type === 'INFO'"
+                 [class.danger]="ins.type === 'DANGER'">
+              <div class="insight-title-block">
+                <span class="insight-type-icon">
+                  {{ ins.type === 'SUCCESS' ? '🟢' : ins.type === 'WARNING' ? '🟡' : ins.type === 'INFO' ? '🔵' : '🔴' }}
+                </span>
+                <span class="insight-title">{{ ins.title }}</span>
+              </div>
+              <div class="insight-desc">{{ ins.description }}</div>
+              <div class="insight-action-box">
+                <strong>Suggested Action:</strong> {{ ins.suggestion }}
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+
+  }
+</div>

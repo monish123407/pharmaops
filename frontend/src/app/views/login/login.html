@@ -1,0 +1,52 @@
+<div class="login-card">
+  <div class="login-header">
+    <div class="login-logo">✚</div>
+    <h2 class="login-title">Arpita Medical</h2>
+    <p class="login-subtitle">Retail Pharmacy Management System</p>
+  </div>
+
+  @if (error()) {
+    <div class="login-error">
+      ⚠️ {{ error() }}
+    </div>
+  }
+
+  <form (submit)="onSubmit($event)">
+    <div class="input-group">
+      <label class="input-label">Username</label>
+      <input id="username-input" type="text" class="form-input" [value]="username()" (input)="username.set($any($event.target).value)" (keydown.enter)="focusPassword($event)" placeholder="Enter username" required>
+    </div>
+
+    <div class="input-group">
+      <label class="input-label">Password</label>
+      <input id="password-input" type="password" class="form-input" [value]="password()" (input)="password.set($any($event.target).value)" (keydown.escape)="focusUsername($event)" placeholder="Enter password" required>
+    </div>
+
+    <button type="submit" class="btn btn-primary btn-submit" [disabled]="loading()">
+      {{ loading() ? 'Authenticating...' : 'Sign In' }}
+    </button>
+  </form>
+
+  <!-- Quick Access Staff Panel -->
+  <div class="quick-access">
+    <h3 class="quick-title">⚡ Quick Access Staff Logins</h3>
+    <div class="quick-grid">
+      <div class="quick-card" (click)="quickLogin('admin', 'admin123')">
+        <span class="quick-name">Admin Monish</span>
+        <span class="badge quick-role badge-danger">Admin</span>
+      </div>
+      <div class="quick-card" (click)="quickLogin('pharmacist', 'pharmacist123')">
+        <span class="quick-name">Dr. Sarah Connor</span>
+        <span class="badge quick-role badge-success">Pharmacist</span>
+      </div>
+      <div class="quick-card" (click)="quickLogin('cashier', 'cashier123')">
+        <span class="quick-name">John Doe</span>
+        <span class="badge quick-role badge-info">Cashier</span>
+      </div>
+      <div class="quick-card" (click)="quickLogin('manager', 'manager123')">
+        <span class="quick-name">Alice Vance</span>
+        <span class="badge quick-role badge-warning">Manager</span>
+      </div>
+    </div>
+  </div>
+</div>

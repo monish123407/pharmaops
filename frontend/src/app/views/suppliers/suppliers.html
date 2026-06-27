@@ -1,0 +1,172 @@
+<div class="prescription-layout">
+  
+  <!-- Add Supplier Row -->
+  <div class="inventory-actions animate-fade-in" style="justify-content: flex-end;">
+    @if (auth.hasRole(['ADMIN', 'INVENTORY_MANAGER'])) {
+      <button class="btn btn-primary" (click)="openAddModal()">
+        ➕ Register Wholesaler
+      </button>
+    }
+  </div>
+
+  @if (loading()) {
+    <div style="display: flex; justify-content: center; align-items: center; height: 300px; font-size: 1.1rem; color: var(--text-muted);">
+      ⌛ Fetching Suppliers Directory...
+    </div>
+  } @else if (suppliers().length === 0) {
+    <div class="glass-panel animate-fade-in" style="text-align: center; padding: 60px; color: var(--text-muted);">
+      <h3>No wholesalers registered in the directory.</h3>
+      <p style="margin-top: 8px;">Register suppliers to facilitate purchase orders.</p>
+    </div>
+  } @else {
+    <!-- Suppliers Cards Grid -->
+    <div class="supplier-grid animate-fade-in">
+      @for (sup of suppliers(); track sup.id) {
+        <div class="glass-panel supplier-card">
+          <div class="supplier-header">
+            <div>
+              <h3 class="supplier-name">{{ sup.name }}</h3>
+            </div>
+            
+            <span class="badge badge-success">Active Wholesaler</span>
+          </div>
+
+          <div class="supplier-body">
+            <div class="supplier-contact-row">
+              <span class="supplier-contact-icon">👤</span>
+              <div>
+                <span style="color: var(--text-muted); font-size: 0.75rem;">Contact Rep</span>
+                <div style="font-weight: 600;">{{ sup.contactName || 'Unspecified' }}</div>
+              </div>
+            </div>
+
+            <div class="supplier-contact-row">
+              <span class="supplier-contact-icon">📞</span>
+              <div>
+                <span style="color: var(--text-muted); font-size: 0.75rem;">Phone Number</span>
+                <div style="font-weight: 600;">{{ sup.phone || 'Unspecified' }}</div>
+              </div>
+            </div>
+
+            <div class="supplier-contact-row">
+              <span class="supplier-contact-icon">✉️</span>
+              <div>
+                <span style="color: var(--text-muted); font-size: 0.75rem;">Email Address</span>
+                <div style="font-weight: 600;">{{ sup.email || 'Unspecified' }}</div>
+              </div>
+            </div>
+
+            <div class="supplier-contact-row">
+              <span class="supplier-contact-icon">📍</span>
+              <div>
+                <span style="color: var(--text-muted); font-size: 0.75rem;">Logistics Address</span>
+                <div style="font-weight: 600;">{{ sup.address || 'Unspecified' }}</div>
+              </div>
+            </div>
+
+            <div class="supplier-contact-row">
+              <span class="supplier-contact-icon">🏭</span>
+              <div>
+                <span style="color: var(--text-muted); font-size: 0.75rem;">Supplied Companies / Brands</span>
+                <div style="font-weight: 600; color: var(--color-primary);">{{ sup.suppliedCompanies || 'None specified' }}</div>
+              </div>
+            </div>
+
+            <!-- Compliance Details Grid -->
+            <div class="supplier-compliance-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 14px; padding: 10px; background: rgba(255,255,255,0.01); border: 1px solid var(--border-color); border-radius: var(--radius-sm); font-size: 0.75rem;">
+              <div>
+                <div style="color: var(--text-muted); font-size: 0.7rem; margin-bottom: 2px;">GSTIN</div>
+                <div style="font-weight: 600; color: var(--color-primary);">{{ sup.gstn || 'N/A' }}</div>
+              </div>
+              <div>
+                <div style="color: var(--text-muted); font-size: 0.7rem; margin-bottom: 2px;">Drug License</div>
+                <div style="font-weight: 600; color: var(--color-secondary);">{{ sup.dlNo || 'N/A' }}</div>
+              </div>
+              <div>
+                <div style="color: var(--text-muted); font-size: 0.7rem; margin-bottom: 2px;">PAN No</div>
+                <div style="font-weight: 600;">{{ sup.pan || 'N/A' }}</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Edit & Delete Row -->
+          @if (auth.hasRole(['ADMIN', 'INVENTORY_MANAGER'])) {
+            <div class="supplier-footer">
+              <button class="btn btn-secondary" style="padding: 6px 12px; font-size: 0.8rem;" (click)="openEditModal(sup)">
+                ✏️ Edit
+              </button>
+              <button class="btn btn-danger" style="padding: 6px 12px; font-size: 0.8rem; background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.2); color:#f87171;" (click)="onDelete(sup.id!)">
+                🗑️ Delete
+              </button>
+            </div>
+          }
+        </div>
+      }
+    </div>
+  }
+</div>
+
+<!-- Add/Edit frosted popup modal -->
+@if (isModalOpen()) {
+  <div class="modal-backdrop">
+    <div class="glass-panel modal-card">
+      <div class="modal-header">
+        <h2>{{ editingSupplierId() ? '✏️ Edit Wholesaler Record' : '➕ Register New Wholesaler' }}</h2>
+        <button class="btn-close" (click)="closeModal()">×</button>
+      </div>
+
+      <form (submit)="onSave($event)" style="display: flex; flex-direction: column; gap: 14px;">
+        <div class="modal-body-horizontal">
+          <div class="modal-col">
+            <div class="input-group">
+              <label class="input-label">Supplier/Company Name *</label>
+              <input id="sup-field-name" type="text" class="form-input" [value]="formName()" (input)="formName.set($any($event.target).value)" (keydown.enter)="onSupplierEnter($event, 'name')" (keydown.escape)="onSupplierEscape($event, 'name')" placeholder="e.g. MedLife Wholesales" tabindex="1" required>
+            </div>
+            <div class="input-group">
+              <label class="input-label">Contact Rep Name *</label>
+              <input id="sup-field-rep" type="text" class="form-input" [value]="formContactName()" (input)="formContactName.set($any($event.target).value)" (keydown.enter)="onSupplierEnter($event, 'rep')" (keydown.escape)="onSupplierEscape($event, 'rep')" placeholder="e.g. Marcus Aurelius" tabindex="3" required>
+            </div>
+            <div class="input-group">
+              <label class="input-label">Phone Number *</label>
+              <input id="sup-field-phone" type="text" class="form-input" [value]="formPhone()" (input)="formPhone.set($any($event.target).value)" (keydown.enter)="onSupplierEnter($event, 'phone')" (keydown.escape)="onSupplierEscape($event, 'phone')" placeholder="e.g. +1-555-0199" tabindex="5" required>
+            </div>
+            <div class="input-group">
+              <label class="input-label">Email Address</label>
+              <input id="sup-field-email" type="email" class="form-input" [value]="formEmail()" (input)="formEmail.set($any($event.target).value)" (keydown.enter)="onSupplierEnter($event, 'email')" (keydown.escape)="onSupplierEscape($event, 'email')" placeholder="e.g. orders@medlife.com" tabindex="7">
+            </div>
+          </div>
+
+          <div class="modal-col">
+            <div class="input-group">
+              <label class="input-label">Logistics Address</label>
+              <input id="sup-field-address" type="text" class="form-input" [value]="formAddress()" (input)="formAddress.set($any($event.target).value)" (keydown.enter)="onSupplierEnter($event, 'address')" (keydown.escape)="onSupplierEscape($event, 'address')" placeholder="e.g. 742 Evergreen Terr" tabindex="2">
+            </div>
+            <div class="input-group">
+              <label class="input-label">GSTIN No</label>
+              <input id="sup-field-gstn" type="text" class="form-input" [value]="formGstn()" (input)="formGstn.set($any($event.target).value)" (keydown.enter)="onSupplierEnter($event, 'gstn')" (keydown.escape)="onSupplierEscape($event, 'gstn')" placeholder="e.g. 09AAAAA1111A1Z1" tabindex="4">
+            </div>
+            <div class="input-group">
+              <label class="input-label">Drug License (DL) No</label>
+              <input id="sup-field-dl" type="text" class="form-input" [value]="formDlNo()" (input)="formDlNo.set($any($event.target).value)" (keydown.enter)="onSupplierEnter($event, 'dl')" (keydown.escape)="onSupplierEscape($event, 'dl')" placeholder="e.g. DL-12345/UP" tabindex="6">
+            </div>
+            <div class="input-group">
+              <label class="input-label">PAN No</label>
+              <input id="sup-field-pan" type="text" class="form-input" [value]="formPan()" (input)="formPan.set($any($event.target).value)" (keydown.enter)="onSupplierEnter($event, 'pan')" (keydown.escape)="onSupplierEscape($event, 'pan')" placeholder="e.g. AAAAA1111A" tabindex="8">
+            </div>
+          </div>
+        </div>
+
+        <!-- Supplied Brands / Companies Input Group -->
+        <div class="input-group" style="padding: 0 4px; margin-top: 4px;">
+          <label class="input-label" style="color: var(--color-primary); font-weight: 700; font-size: 0.82rem;">Supplied Medicine Brands (e.g. Cipla, Abbott, Cadila, Lupin) *</label>
+          <input id="sup-field-brands" type="text" class="form-input" [value]="formSuppliedCompanies()" (input)="formSuppliedCompanies.set($any($event.target).value)" (keydown.enter)="onSupplierEnter($event, 'brands')" (keydown.escape)="onSupplierEscape($event, 'brands')" placeholder="e.g. Cipla, Abbott, Cadila, Lupin, Pfizer (comma-separated list)" tabindex="9" required>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" (click)="closeModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Supplier</button>
+        </div>
+      </form>
+    </div>
+  </div>
+}

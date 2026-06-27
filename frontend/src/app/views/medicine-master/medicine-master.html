@@ -1,0 +1,225 @@
+<div class="inventory-actions animate-fade-in">
+  <!-- Interactive Search Bar -->
+  <div class="search-bar">
+    <span class="search-icon">🔍</span>
+    <input type="text" class="form-input search-input" 
+           [value]="searchTerm()" (input)="onSearchChange($any($event.target).value)" 
+           placeholder="Search master by product name, SKU, manufacturer...">
+  </div>
+
+  <!-- Action Filters -->
+  <div class="filter-tabs">
+    <button class="tab-btn" [class.active]="activeFilter() === 'ALL'" (click)="setFilter('ALL')">
+      📋 All Categories
+    </button>
+    <button class="tab-btn" [class.active]="activeFilter() === 'medicine'" (click)="setFilter('medicine')">
+      💊 Medicines
+    </button>
+    <button class="tab-btn" [class.active]="activeFilter() === 'cosmetics'" (click)="setFilter('cosmetics')">
+      💄 Cosmetics
+    </button>
+    <button class="tab-btn" [class.active]="activeFilter() === 'food'" (click)="setFilter('food')">
+      🍏 Nutrition / Food
+    </button>
+    <button class="tab-btn" [class.active]="activeFilter() === 'others'" (click)="setFilter('others')">
+      ⚙️ Others
+    </button>
+  </div>
+
+  <!-- Register Product Button -->
+  @if (auth.hasRole(['ADMIN', 'INVENTORY_MANAGER', 'PHARMACIST'])) {
+    <div>
+      <button class="btn btn-primary" (click)="openAddModal()">
+        ➕ Register Master Product
+      </button>
+    </div>
+  }
+</div>
+
+@if (loading()) {
+  <div style="display: flex; justify-content: center; align-items: center; height: 300px; font-size: 1.1rem; color: var(--text-muted);">
+    ⌛ Fetching Master Catalog Directory...
+  </div>
+} @else if (filteredMasters().length === 0) {
+  <div class="glass-panel animate-fade-in" style="text-align: center; padding: 60px; color: var(--text-muted);">
+    <h3>No registered products found matching your search.</h3>
+    <p style="margin-top: 8px;">Try modifying your active filter tabs or add a new static product entry.</p>
+  </div>
+} @else {
+  <!-- Master Catalog Grid -->
+  <div class="medicine-grid animate-fade-in">
+    @for (master of filteredMasters(); track master.id) {
+      <div class="glass-panel med-card">
+        
+        <div class="med-header">
+          <div>
+            <h3 class="med-title">{{ master.productName }}</h3>
+            <div class="med-generic" style="font-weight: 500; font-size: 0.85rem; opacity: 0.95; color: var(--color-primary); margin-bottom: 2px;">🧪 {{ master.composition }}</div>
+            <span class="med-generic">{{ master.companyName }}</span>
+          </div>
+          <!-- Category Badge -->
+          <span class="badge" [class]="getCategoryBadgeClass(master.category)">
+            {{ master.category }}
+          </span>
+        </div>
+
+        <!-- Master Specific Details Grid -->
+        <div class="med-details">
+          <div>
+            <div class="detail-label">Product Code (SKU)</div>
+            <div class="detail-value">{{ master.productCode }}</div>
+          </div>
+          <div>
+            <div class="detail-label">Product Type</div>
+            <div class="detail-value">{{ master.productType }}</div>
+          </div>
+          <div>
+            <div class="detail-label">Pack size</div>
+            <div class="detail-value">{{ master.productQuantity }}</div>
+          </div>
+          <div>
+            <div class="detail-label">HSN Code</div>
+            <div class="detail-value">{{ master.hsnCode }}</div>
+          </div>
+          <div>
+            <div class="detail-label">CGST Rate</div>
+            <div class="detail-value" style="color: var(--color-secondary);">{{ master.cgst }}%</div>
+          </div>
+          <div>
+            <div class="detail-label">SGST Rate</div>
+            <div class="detail-value" style="color: var(--color-secondary);">{{ master.sgst }}%</div>
+          </div>
+          <div>
+            <div class="detail-label">Rack Location</div>
+            <div class="detail-value">{{ master.rackLocation || 'Unassigned' }}</div>
+          </div>
+          <div>
+            <div class="detail-label">Re-order Limit</div>
+            <div class="detail-value">{{ master.reorderLevel !== undefined && master.reorderLevel !== null ? master.reorderLevel : 'Not set' }}</div>
+          </div>
+        </div>
+
+        <!-- Action Row (Conditional on Role permissions) -->
+        @if (auth.hasRole(['ADMIN', 'INVENTORY_MANAGER', 'PHARMACIST'])) {
+          <div class="med-footer">
+            <button class="btn btn-secondary" style="padding: 6px 12px; font-size: 0.8rem;" (click)="openEditModal(master)">
+              ✏️ Edit Product
+            </button>
+            <button class="btn btn-danger" style="padding: 6px 12px; font-size: 0.8rem; background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.2); color:#f87171;" (click)="onDelete(master.id!)">
+              🗑️ Delete
+            </button>
+          </div>
+        }
+      </div>
+    }
+  </div>
+}
+
+<!-- Product Registration Modal Form -->
+@if (isModalOpen()) {
+  <div class="modal-backdrop">
+    <div class="glass-panel modal-card">
+      <div class="modal-header">
+        <h2>{{ editingMasterId() ? '✏️ Modify Registered Product' : '➕ Register New Static Product' }}</h2>
+        <button class="btn-close" (click)="closeModal()">×</button>
+      </div>
+
+      <form (submit)="onSave($event)" style="display: flex; flex-direction: column; gap: 14px;">
+        <!-- Unified 3-Column Symmetrical Grid Layout (4x3 Grid Flow) -->
+        <div class="modal-grid-3-equal" style="gap: 16px 20px;">
+          <!-- Row 1: Primary Identifiers -->
+          <div class="input-group" style="margin-bottom: 0;">
+            <label class="input-label">Product Name *</label>
+            <input id="mas-field-name" type="text" class="form-input" [value]="formProductName()" (input)="formProductName.set($any($event.target).value)" (keydown.enter)="onMasterEnter($event, 'name')" (keydown.escape)="onMasterEscape($event, 'name')" placeholder="e.g. Paracetamol 500mg" required>
+          </div>
+          <div class="input-group" style="margin-bottom: 0;">
+            <label class="input-label">Generic formulation *</label>
+            <input id="mas-field-generic" type="text" class="form-input" [value]="formComposition()" (input)="formComposition.set($any($event.target).value)" (keydown.enter)="onMasterEnter($event, 'generic')" (keydown.escape)="onMasterEscape($event, 'generic')" placeholder="e.g. Paracetamol IP 500mg" required>
+          </div>
+          <div class="input-group" style="margin-bottom: 0;">
+            <label class="input-label">Product Code (SKU) *</label>
+            <input id="mas-field-sku" type="text" class="form-input" [value]="formProductCode()" (input)="formProductCode.set($any($event.target).value)" (keydown.enter)="onMasterEnter($event, 'sku')" (keydown.escape)="onMasterEscape($event, 'sku')" placeholder="e.g. MED-PARA-500" required>
+          </div>
+
+          <!-- Row 2: Secondary Attributes -->
+          <div class="input-group" style="margin-bottom: 0;">
+            <label class="input-label">Company (Manufacturer) *</label>
+            <input id="mas-field-company" type="text" class="form-input" [value]="formCompanyName()" (input)="formCompanyName.set($any($event.target).value)" (keydown.enter)="onMasterEnter($event, 'company')" (keydown.escape)="onMasterEscape($event, 'company')" placeholder="e.g. Cipla Ltd" required>
+          </div>
+          <div class="input-group" style="margin-bottom: 0;">
+            <label class="input-label">Category *</label>
+            <select id="mas-field-category" class="form-input" [value]="formCategory()" (change)="formCategory.set($any($event.target).value)" (keydown.enter)="onMasterEnter($event, 'category')" (keydown.escape)="onMasterEscape($event, 'category')">
+              <option value="medicine">Medicines</option>
+              <option value="cosmetics">Cosmetics / OTC</option>
+              <option value="food">Food / Supplements</option>
+              <option value="others">Others</option>
+            </select>
+          </div>
+          <div class="input-group" style="margin-bottom: 0;">
+            <label class="input-label">Product Pack size (Quantity) *</label>
+            <input id="mas-field-packSize" type="text" class="form-input" [value]="formProductQuantity()" (input)="formProductQuantity.set($any($event.target).value)" (keydown.enter)="onMasterEnter($event, 'packSize')" (keydown.escape)="onMasterEscape($event, 'packSize')" placeholder="e.g. 10 Tablets/Strip" required>
+          </div>
+
+          <!-- Row 3: Location and Compliance -->
+          <div class="input-group" style="margin-bottom: 0;">
+            <label class="input-label">HSN Code *</label>
+            <select id="mas-field-hsn" class="form-input" [value]="formHsnCode()" (change)="onHsnChange($any($event.target).value)" (keydown.enter)="onMasterEnter($event, 'hsn')" (keydown.escape)="onMasterEscape($event, 'hsn')">
+              <option value="3004">3004 (Medicines/Formulations - 12%)</option>
+              <option value="3002">3002 (Vaccines/Blood - 5%)</option>
+              <option value="9021">9021 (Orthopaedic/Stents - 5%)</option>
+              <option value="3003">3003 (Medicaments Mixed - 12%)</option>
+              <option value="3005">3005 (Bandages/Dressings - 12%)</option>
+              <option value="3006">3006 (Surgical Sutures - 12%)</option>
+              <option value="9018">9018 (Surgical Instruments - 12%)</option>
+              <option value="3304">3304 (Cosmetics/Skin-care - 18%)</option>
+              <option value="2106">2106 (Protein Supplements - 18%)</option>
+              <option value="3808">3808 (Sanitizers/Disinfectants - 18%)</option>
+              <option value="4015">4015 (Surgical Gloves - 18%)</option>
+              <option value="9025">9025 (Thermometers - 18%)</option>
+              <option value="9027">9027 (Diagnostic/BP Monitors - 18%)</option>
+              <option value="30066030">30066030 (Oral Contraceptive - 0%)</option>
+              <option value="others">Other/Custom (General Slab - 12%)</option>
+            </select>
+          </div>
+          <div class="input-group" style="margin-bottom: 0;">
+            <label class="input-label">Product Type *</label>
+            <select id="mas-field-type" class="form-input" [value]="formProductType()" (change)="formProductType.set($any($event.target).value)" (keydown.enter)="onMasterEnter($event, 'type')" (keydown.escape)="onMasterEscape($event, 'type')">
+              <option value="Tablet">Tablet</option>
+              <option value="Capsule">Capsule</option>
+              <option value="Syrup">Syrup</option>
+              <option value="Injection">Injection</option>
+              <option value="Ointment">Ointment</option>
+              <option value="Powder">Powder</option>
+              <option value="Others">Others</option>
+            </select>
+          </div>
+          <div class="input-group" style="margin-bottom: 0;">
+            <label class="input-label">Rack Location</label>
+            <input id="mas-field-rack" type="text" class="form-input" [value]="formRackLocation()" (input)="formRackLocation.set($any($event.target).value)" (keydown.enter)="onMasterEnter($event, 'rack')" (keydown.escape)="onMasterEscape($event, 'rack')" placeholder="e.g. Rack-A1 or Fridge-1">
+          </div>
+
+          <!-- Row 4: Re-order Limit & Symmetrical Tax Splits -->
+          <div class="input-group" style="margin-bottom: 0;">
+            <label class="input-label">Re-order Limit</label>
+            <input id="mas-field-reorder" type="number" class="form-input" [value]="formReorderLevel() !== null ? formReorderLevel() : ''" (input)="formReorderLevel.set($any($event.target).value ? +$any($event.target).value : null)" (keydown.enter)="onMasterEnter($event, 'reorder')" (keydown.escape)="onMasterEscape($event, 'reorder')" placeholder="e.g. 10">
+          </div>
+          <div class="input-group" style="margin-bottom: 0;">
+            <label class="input-label">CGST Split *</label>
+            <input id="mas-field-cgst" type="number" step="0.1" class="form-input" [value]="formCgst()" (input)="formCgst.set(+$any($event.target).value)" (keydown.enter)="onMasterEnter($event, 'cgst')" (keydown.escape)="onMasterEscape($event, 'cgst')" min="0" max="14" required>
+          </div>
+          <div class="input-group" style="margin-bottom: 0;">
+            <label class="input-label">SGST Split *</label>
+            <input id="mas-field-sgst" type="number" step="0.1" class="form-input" [value]="formSgst()" (input)="formSgst.set(+$any($event.target).value)" (keydown.enter)="onMasterEnter($event, 'sgst')" (keydown.escape)="onMasterEscape($event, 'sgst')" min="0" max="14" required>
+          </div>
+        </div>
+
+
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" (click)="closeModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Product Profile</button>
+        </div>
+      </form>
+    </div>
+  </div>
+}

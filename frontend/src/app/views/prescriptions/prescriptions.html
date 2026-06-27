@@ -1,0 +1,90 @@
+<div class="prescription-layout">
+  
+  <!-- Search Patient Row -->
+  <div class="inventory-actions animate-fade-in">
+    <div class="search-bar">
+      <span class="search-icon">🔍</span>
+      <input type="text" class="form-input search-input" 
+             [value]="searchTerm()" (input)="onSearchChange($any($event.target).value)" 
+             placeholder="Search prescriptions by patient name...">
+    </div>
+  </div>
+
+  @if (loading()) {
+    <div style="display: flex; justify-content: center; align-items: center; height: 300px; font-size: 1.1rem; color: var(--text-muted);">
+      ⌛ Fetching Prescriptions Hub...
+    </div>
+  } @else if (filteredPrescriptions().length === 0) {
+    <div class="glass-panel animate-fade-in" style="text-align: center; padding: 60px; color: var(--text-muted);">
+      <h3>No prescriptions found.</h3>
+      <p style="margin-top: 8px;">Verify patient details or search parameters.</p>
+    </div>
+  } @else {
+    <!-- Grid of Patient Prescriptions -->
+    <div class="prescription-grid animate-fade-in">
+      @for (presc of filteredPrescriptions(); track presc.id) {
+        <div class="glass-panel presc-card">
+          <div class="presc-header">
+            <div>
+              <h3 class="presc-patient">{{ presc.patientName }}</h3>
+              <div class="presc-meta">
+                <span>Age: {{ presc.patientAge }}</span> | 
+                <span>Issued: {{ presc.issueDate }}</span>
+              </div>
+            </div>
+            
+            <span class="badge" [class]="presc.status === 'PENDING' ? 'badge-warning' : 'badge-success'">
+              {{ presc.status }}
+            </span>
+          </div>
+
+          <div class="presc-body">
+            <!-- Doctor Details -->
+            <div style="display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 12px;">
+              <span class="presc-doctor">👨‍⚕️ Dr. {{ presc.doctorName }}</span>
+              <span style="color: var(--text-muted);">Lic: {{ presc.doctorLicense }}</span>
+            </div>
+
+            <!-- Items Prescribed -->
+            <div style="font-size: 0.85rem; font-weight: 600; color: var(--text-heading); margin-bottom: 6px;">
+              📋 Prescribed Formulations:
+            </div>
+            <div class="presc-items-list">
+              @for (item of presc.items; track item.id) {
+                <div class="presc-item">
+                  <div>
+                    <span class="presc-item-name">{{ item.medicineName }}</span>
+                    <div class="presc-item-dosage">Dosage: {{ item.dosage }} ({{ item.instructions || 'With food' }})</div>
+                  </div>
+                  <span class="presc-item-qty">{{ item.quantity }} pcs</span>
+                </div>
+              }
+            </div>
+
+            <!-- Doctor Notes -->
+            @if (presc.notes) {
+              <div style="margin-top: 16px;">
+                <div class="presc-notes">
+                  <strong>Notes:</strong> {{ presc.notes }}
+                </div>
+              </div>
+            }
+          </div>
+
+          <!-- Checkout Link dispensing action -->
+          <div style="border-top: 1px solid var(--border-color); padding-top: 16px; display: flex; justify-content: flex-end;">
+            @if (presc.status === 'PENDING') {
+              <button class="btn btn-primary" style="width: 100%;" (click)="dispenseAndInvoice(presc.id!)">
+                ⚡ Dispense & Invoice
+              </button>
+            } @else {
+              <button class="btn btn-secondary" style="width: 100%; border-color: var(--color-success); color: var(--color-success);" disabled>
+                ✓ Dispensed & Completed
+              </button>
+            }
+          </div>
+        </div>
+      }
+    </div>
+  }
+</div>

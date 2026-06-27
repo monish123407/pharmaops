@@ -1,0 +1,252 @@
+<div class="op-page">
+
+  <!-- ════════════════════════════════════════════════════
+       PAGE HEADER
+  ════════════════════════════════════════════════════ -->
+  <div class="op-header">
+    <div class="op-header-left">
+      <h2 class="op-title">📦 Order Purchase</h2>
+      <p class="op-subtitle">Place restock orders for low-stock medicines with your wholesaler</p>
+    </div>
+    <div class="op-header-right">
+      <button class="btn-history" routerLink="/purchase/order-history">
+        📋 Order History
+        @if (orders().length > 0) {
+          <span class="history-badge">{{ orders().length }}</span>
+        }
+      </button>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════
+       STEP 1 — WHOLESALER SEARCH
+  ════════════════════════════════════════════════════ -->
+  <div class="step-card">
+    <div class="step-header">
+      <div class="step-num">1</div>
+      <div>
+        <h3 class="step-title">Select Wholesaler</h3>
+        <p class="step-desc">Search and select the wholesaler to place the order with</p>
+      </div>
+    </div>
+
+    <div class="supplier-search-wrapper">
+      <div class="supplier-search-box" [class.open]="supplierDropdownOpen()">
+        <span class="search-icon">🏢</span>
+        <input
+          id="op-supplier-search"
+          type="text"
+          class="supplier-input"
+          placeholder="Search wholesaler by name…"
+          [value]="supplierQuery()"
+          (input)="onSupplierInput($any($event.target).value)"
+          (focus)="supplierDropdownOpen.set(true)"
+          (blur)="closeSupplierDropdown()"
+          (keydown.enter)="onSupplierSearchEnter($event)"
+          (keydown.arrowdown)="onSupplierKeyDown($event, 'down')"
+          (keydown.arrowup)="onSupplierKeyDown($event, 'up')"
+          autocomplete="off"
+        />
+        @if (selectedSupplier()) {
+          <span class="selected-tick">✓ Selected</span>
+        }
+      </div>
+
+      @if (supplierDropdownOpen() && filteredSuppliers().length > 0) {
+        <div class="supplier-dropdown">
+          @for (sup of filteredSuppliers(); let idx = $index; track sup.id) {
+            <div
+              class="supplier-option"
+              [class.active]="activeSupplierIndex() === idx"
+              (mousedown)="selectSupplier(sup)"
+              (mouseenter)="activeSupplierIndex.set(idx)"
+            >
+              <span class="sup-name">{{ sup.name }}</span>
+              @if (sup.contactName) {
+                <span class="sup-contact">{{ sup.contactName }}</span>
+              }
+              @if (sup.phone) {
+                <span class="sup-phone">📞 {{ sup.phone }}</span>
+              }
+            </div>
+          }
+        </div>
+      }
+      @if (supplierDropdownOpen() && filteredSuppliers().length === 0 && supplierQuery().length > 0) {
+        <div class="supplier-dropdown">
+          <div class="supplier-empty">No wholesaler found for "{{ supplierQuery() }}"</div>
+        </div>
+      }
+    </div>
+
+    @if (selectedSupplier()) {
+      <div class="selected-supplier-chip">
+        <span class="chip-icon">🏢</span>
+        <div class="chip-info">
+          <strong>{{ selectedSupplier()!.name }}</strong>
+          @if (selectedSupplier()!.contactName) {
+            <span> · {{ selectedSupplier()!.contactName }}</span>
+          }
+          @if (selectedSupplier()!.phone) {
+            <span> · {{ selectedSupplier()!.phone }}</span>
+          }
+        </div>
+        <button class="chip-clear" (click)="selectedSupplier.set(null); supplierQuery.set(''); clearSelection()">✕</button>
+      </div>
+    }
+  </div>
+
+  <!-- ════════════════════════════════════════════════════
+       STEP 2 — LOW STOCK TABLE
+  ════════════════════════════════════════════════════ -->
+  <div class="step-card" [class.dimmed]="!selectedSupplier()">
+    <div class="step-header">
+      <div class="step-num">2</div>
+      <div>
+        <h3 class="step-title">Select Medicines to Order</h3>
+        <p class="step-desc">All low-stock medicines are listed below. Select what you want to order and set quantities.</p>
+      </div>
+      @if (selectedCount() > 0) {
+        <div class="selection-summary">
+          <span class="sel-count">{{ selectedCount() }} selected</span>
+        </div>
+      }
+    </div>
+
+    @if (lowStockRows().length === 0) {
+      <div class="empty-state">
+        <div class="empty-icon">✅</div>
+        <h4>All medicines are adequately stocked!</h4>
+        <p>No medicines are currently below their reorder limit.</p>
+      </div>
+    } @else {
+      <div class="table-wrapper">
+        <table class="op-table">
+          <thead>
+            <tr>
+              <th class="col-check">
+                <input type="checkbox" class="row-checkbox" [checked]="isAllSelected()" (change)="toggleAll()" title="Select All" />
+              </th>
+              <th>Medicine Name</th>
+              <th>Generic / Composition</th>
+              <th class="col-center">Current Stock</th>
+              <th class="col-center">Reorder Limit</th>
+              <th class="col-center">Qty to Order</th>
+              <th>Previous Orders</th>
+              <th class="col-center">Pending Qty</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (row of lowStockRows(); track row.sku; let i = $index) {
+              <tr [class.row-selected]="isSelected(row.sku)" (click)="toggleRow(row.sku)">
+
+                <!-- Checkbox -->
+                <td class="col-check" (click)="$event.stopPropagation()">
+                  <input type="checkbox" class="row-checkbox" [checked]="isSelected(row.sku)" (change)="toggleRow(row.sku)" />
+                </td>
+
+                <!-- Name -->
+                <td>
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <div class="med-name">{{ row.name }}</div>
+                    @if (row.isSupplied) {
+                      <span class="badge" style="font-size: 0.65rem; padding: 2px 6px; font-weight: 700; background: rgba(20,184,166,0.12); color: var(--color-primary); border: 1px solid rgba(20,184,166,0.25); border-radius: 4px; display: inline-flex; align-items: center; gap: 3px;" title="This medicine company is supplied by the selected wholesaler">
+                        🏭 Supplied Brand
+                      </span>
+                    }
+                  </div>
+                  <div class="med-sku">{{ row.sku }}</div>
+                </td>
+
+                <!-- Generic -->
+                <td>
+                  <span class="med-generic">{{ row.genericName || '—' }}</span>
+                </td>
+
+                <!-- Current Stock -->
+                <td class="col-center">
+                  <span class="badge-low-stock">
+                    {{ row.totalStockUnits }} {{ row.unit }}
+                  </span>
+                </td>
+
+                <!-- Reorder Limit -->
+                <td class="col-center">
+                  <span class="reorder-limit">{{ row.reorderLimitUnits }} {{ row.unit }}</span>
+                </td>
+
+                <!-- Qty to Order -->
+                <td class="col-center" (click)="$event.stopPropagation()">
+                  <div class="qty-stepper">
+                    <button class="qty-btn" (click)="selectSkuIfUnselected(row.sku); setQty(row.sku, getQty(row.sku) - 1)">−</button>
+                    <input
+                      [id]="'qty-input-' + i"
+                      type="number"
+                      class="qty-input"
+                      [value]="getQty(row.sku)"
+                      (input)="onQtyInput(row.sku, $any($event.target).value)"
+                      (keydown.enter)="onQtyKeyDown($event, row.sku, i, 'enter')"
+                      (keydown.arrowdown)="onQtyKeyDown($event, row.sku, i, 'down')"
+                      (keydown.arrowup)="onQtyKeyDown($event, row.sku, i, 'up')"
+                      min="1"
+                    />
+                    <button class="qty-btn" (click)="selectSkuIfUnselected(row.sku); setQty(row.sku, getQty(row.sku) + 1)">+</button>
+                  </div>
+                </td>
+
+                <!-- Previous Orders -->
+                <td (click)="$event.stopPropagation()">
+                  @if (row.prevOrders.length === 0) {
+                    <span class="no-prev">No previous orders</span>
+                  } @else {
+                    <div class="prev-orders-list">
+                      @for (po of row.prevOrders; track po.orderDate) {
+                        <div class="prev-order-item" [class.received]="po.status === 'RECEIVED'">
+                          <span class="prev-wholesaler">{{ po.wholesalerName }}</span>
+                          <span class="prev-qty">{{ po.quantityOrdered }} {{ po.unit }}</span>
+                          <span class="prev-date">{{ formatDate(po.orderDate) }}</span>
+                          <span class="prev-status" [class.status-pending]="po.status === 'PENDING'" [class.status-received]="po.status === 'RECEIVED'">
+                            {{ po.status }}
+                          </span>
+                        </div>
+                      }
+                    </div>
+                  }
+                </td>
+
+                <!-- Pending Qty -->
+                <td class="col-center">
+                  @if (totalOrderedForSku(row.sku) > 0) {
+                    <span class="pending-qty-badge">{{ totalOrderedForSku(row.sku) }} {{ row.unit }}</span>
+                  } @else {
+                    <span class="no-prev">—</span>
+                  }
+                </td>
+
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </div>
+
+  <!-- ════════════════════════════════════════════════════
+       PLACE ORDER BUTTON
+  ════════════════════════════════════════════════════ -->
+  @if (selectedCount() > 0 && selectedSupplier()) {
+    <div class="order-action-bar">
+      <div class="order-action-info">
+        <span>🏢 {{ selectedSupplier()!.name }}</span>
+        <span class="action-divider">·</span>
+        <span>{{ selectedCount() }} medicine{{ selectedCount() > 1 ? 's' : '' }} selected</span>
+      </div>
+      <button class="btn-place-order" (click)="placeOrder()">
+        📦 Place Order
+      </button>
+    </div>
+  }
+
+
+
+</div>

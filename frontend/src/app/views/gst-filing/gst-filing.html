@@ -1,0 +1,384 @@
+<div class="gst-container print-content">
+  <!-- Date Selector & Toolbar (Hidden during browser default printing if desired, handled via css) -->
+  <div class="glass-panel toolbar-panel no-print" style="margin-bottom: 16px; padding: 14px 20px;">
+    <div class="toolbar-grid">
+      <!-- Quick Presets -->
+      <div class="toolbar-section">
+        <label class="control-label">Quick select period:</label>
+        <div class="btn-group">
+          <button class="btn btn-secondary btn-sm" (click)="quickSelect('thisMonth')">This Month</button>
+          <button class="btn btn-secondary btn-sm" (click)="quickSelect('lastMonth')">Last Month</button>
+          <button class="btn btn-secondary btn-sm" (click)="quickSelect('currentQuarter')">This Quarter</button>
+        </div>
+      </div>
+
+      <!-- Date Pickers -->
+      <div class="toolbar-section date-range-inputs">
+        <div class="input-group-compact">
+          <label class="control-label">From Date:</label>
+          <input type="date" class="form-control" [(ngModel)]="startDate" (change)="loadGstReport()">
+        </div>
+        <div class="input-group-compact">
+          <label class="control-label">To Date:</label>
+          <input type="date" class="form-control" [(ngModel)]="endDate" (change)="loadGstReport()">
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div class="toolbar-actions">
+        <button class="btn btn-primary" [disabled]="loading()" (click)="loadGstReport()" style="display: flex; align-items: center; gap: 6px;">
+          <span>🔍</span> {{ loading() ? 'Loading...' : 'Retrieve Report' }}
+        </button>
+        <button class="btn btn-secondary" [disabled]="!summary()" (click)="printReport()" style="display: flex; align-items: center; gap: 6px;">
+          <span>🖨️</span> Print Report
+        </button>
+      </div>
+    </div>
+  </div>
+
+  @if (loading()) {
+    <div class="glass-panel loading-state" style="padding: 40px; text-align: center; border: 1px dashed var(--border-color);">
+      <div class="spinner"></div>
+      <p style="margin-top: 16px; color: var(--text-muted); font-size: 0.95rem; font-weight: 500;">
+        Computing high-resolution GST aggregates and splits...
+      </p>
+    </div>
+  } @else if (summary()) {
+    <!-- GST Main KPI Row -->
+    <div class="kpi-row" style="margin-bottom: 16px;">
+      <!-- Card 1: Output GST Sales Liability -->
+      <div class="glass-panel kpi-card card-output">
+        <div class="kpi-header">
+          <span class="kpi-icon">📈</span>
+          <span class="kpi-label">Sales Output GST (Liability)</span>
+        </div>
+        <div class="kpi-value">₹{{ summary().totalSalesGst | number:'1.2-2' }}</div>
+        <div class="kpi-splits">
+          <div class="split-row">
+            <span>CGST Split (50%):</span>
+            <span>₹{{ summary().totalSalesCgst | number:'1.2-2' }}</span>
+          </div>
+          <div class="split-row">
+            <span>SGST Split (50%):</span>
+            <span>₹{{ summary().totalSalesSgst | number:'1.2-2' }}</span>
+          </div>
+        </div>
+        <div class="kpi-footer">Tax collected on outward supplies</div>
+      </div>
+
+      <!-- Card 2: Input GST Tax Credit -->
+      <div class="glass-panel kpi-card card-input">
+        <div class="kpi-header">
+          <span class="kpi-icon">📥</span>
+          <span class="kpi-label">Input Tax Credit - ITC (Paid)</span>
+        </div>
+        <div class="kpi-value">₹{{ summary().totalPurchasesGst | number:'1.2-2' }}</div>
+        <div class="kpi-splits">
+          <div class="split-row">
+            <span>Input CGST (ITC):</span>
+            <span>₹{{ summary().totalPurchasesCgst | number:'1.2-2' }}</span>
+          </div>
+          <div class="split-row">
+            <span>Input SGST (ITC):</span>
+            <span>₹{{ summary().totalPurchasesSgst | number:'1.2-2' }}</span>
+          </div>
+        </div>
+        <div class="kpi-footer">Tax credit paid on wholesaler bills</div>
+      </div>
+
+      <!-- Card 3: Net GST Payable -->
+      <div class="glass-panel kpi-card card-net" [class.tax-credit]="summary().netGstPayable < 0">
+        <div class="kpi-header">
+          <span class="kpi-icon">{{ summary().netGstPayable >= 0 ? '🏛️' : '🛡️' }}</span>
+          <span class="kpi-label">{{ summary().netGstPayable >= 0 ? 'Net GST Payable to Govt' : 'Net Excess GST Credit' }}</span>
+        </div>
+        <div class="kpi-value">₹{{ (summary().netGstPayable < 0 ? -summary().netGstPayable : summary().netGstPayable) | number:'1.2-2' }}</div>
+        <div class="kpi-splits">
+          <div class="split-row">
+            <span>{{ summary().netGstPayable >= 0 ? 'Net CGST Payable:' : 'CGST Excess Credit:' }}</span>
+            <span>₹{{ (summary().netCgstPayable < 0 ? -summary().netCgstPayable : summary().netCgstPayable) | number:'1.2-2' }}</span>
+          </div>
+          <div class="split-row">
+            <span>{{ summary().netGstPayable >= 0 ? 'Net SGST Payable:' : 'SGST Excess Credit:' }}</span>
+            <span>₹{{ (summary().netSgstPayable < 0 ? -summary().netSgstPayable : summary().netSgstPayable) | number:'1.2-2' }}</span>
+          </div>
+        </div>
+        <div class="kpi-footer">
+          {{ summary().netGstPayable >= 0 ? 'Payable balance for current period' : 'Excess input tax credit carry-forward' }}
+        </div>
+      </div>
+    </div>
+
+    <!-- Print Headers (Only visible during prints) -->
+    <div class="print-header-block">
+      <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #333; padding-bottom: 10px; margin-bottom: 15px;">
+        <div>
+          <h2 style="margin: 0; font-size: 1.5rem; color: #111;">Arpita Medical — GST Audit Report</h2>
+          <p style="margin: 3px 0 0 0; font-size: 0.85rem; color: #555;">Filing & Return ledger summary</p>
+        </div>
+        <div style="text-align: right; font-size: 0.85rem; color: #555;">
+          <div><strong>Filing Period:</strong> {{ startDate() | date:'mediumDate' }} to {{ endDate() | date:'mediumDate' }}</div>
+          <div><strong>Report Generated:</strong> {{ currentTime | date:'medium' }}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab View Panel -->
+    <div class="glass-panel main-panel">
+      <!-- Tabs Selector Header -->
+      <div class="tab-headers no-print">
+        <button class="tab-btn" [class.active]="activeTab() === 'slabs'" (click)="activeTab.set('slabs')">
+          📊 GST Slabs Summary
+        </button>
+        <button class="tab-btn" [class.active]="activeTab() === 'hsns'" (click)="activeTab.set('hsns')">
+          🏷️ HSN-Wise Summary
+        </button>
+        <button class="tab-btn" [class.active]="activeTab() === 'sales'" (click)="activeTab.set('sales')">
+          📈 Outward Sales Ledger
+        </button>
+        <button class="tab-btn" [class.active]="activeTab() === 'purchases'" (click)="activeTab.set('purchases')">
+          📉 Inward Purchases Ledger
+        </button>
+      </div>
+
+      <!-- Tab Content Frame -->
+      <div class="tab-content" style="padding: 16px 20px;">
+        
+        <!-- TAB 1: SLABS SUMMARY -->
+        @if (activeTab() === 'slabs') {
+          <div class="table-container">
+            <h3 class="print-section-title">GST Tax Slabs Breakdown Summary</h3>
+            <table class="report-table">
+              <thead>
+                <tr>
+                  <th rowspan="2" style="width: 100px;">GST Slab (%)</th>
+                  <th colspan="3" class="header-outward">Outward Supplies (Sales)</th>
+                  <th colspan="3" class="header-inward">Inward Supplies (Purchases)</th>
+                  <th colspan="3" class="header-net">Net Payable / Credit</th>
+                </tr>
+                <tr>
+                  <th>Taxable (₹)</th>
+                  <th>CGST (₹)</th>
+                  <th>SGST (₹)</th>
+                  <th>Taxable (₹)</th>
+                  <th>CGST (₹)</th>
+                  <th>SGST (₹)</th>
+                  <th>CGST (₹)</th>
+                  <th>SGST (₹)</th>
+                  <th>Total GST (₹)</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (slab of summary().slabs; track slab.gstRate) {
+                  <tr>
+                    <td style="font-weight: bold; color: var(--text-heading);">{{ slab.gstRate }}%</td>
+                    <td>{{ slab.salesTaxable | number:'1.2-2' }}</td>
+                    <td class="color-sales">{{ slab.salesCgst | number:'1.2-2' }}</td>
+                    <td class="color-sales">{{ slab.salesSgst | number:'1.2-2' }}</td>
+                    <td>{{ slab.purchasesTaxable | number:'1.2-2' }}</td>
+                    <td class="color-purchases">{{ slab.purchasesCgst | number:'1.2-2' }}</td>
+                    <td class="color-purchases">{{ slab.purchasesSgst | number:'1.2-2' }}</td>
+                    <td [class.negative-balance]="slab.netCgst < 0" [class.positive-balance]="slab.netCgst > 0">
+                      {{ (slab.netCgst < 0 ? -slab.netCgst : slab.netCgst) | number:'1.2-2' }}{{ slab.netCgst < 0 ? ' Cr' : ' Dr' }}
+                    </td>
+                    <td [class.negative-balance]="slab.netSgst < 0" [class.positive-balance]="slab.netSgst > 0">
+                      {{ (slab.netSgst < 0 ? -slab.netSgst : slab.netSgst) | number:'1.2-2' }}{{ slab.netSgst < 0 ? ' Cr' : ' Dr' }}
+                    </td>
+                    <td style="font-weight: 800;" [class.negative-balance]="slab.netTotalGst < 0" [class.positive-balance]="slab.netTotalGst > 0">
+                      {{ (slab.netTotalGst < 0 ? -slab.netTotalGst : slab.netTotalGst) | number:'1.2-2' }}{{ slab.netTotalGst < 0 ? ' Cr' : ' Dr' }}
+                    </td>
+                  </tr>
+                }
+                <!-- Slabs Summary Table Footer -->
+                <tr class="table-totals" style="border-top: 2px solid var(--border-color); font-weight: bold;">
+                  <td>TOTAL</td>
+                  <td>{{ summary().totalSalesTaxable | number:'1.2-2' }}</td>
+                  <td class="color-sales">{{ summary().totalSalesCgst | number:'1.2-2' }}</td>
+                  <td class="color-sales">{{ summary().totalSalesSgst | number:'1.2-2' }}</td>
+                  <td>{{ summary().totalPurchasesTaxable | number:'1.2-2' }}</td>
+                  <td class="color-purchases">{{ summary().totalPurchasesCgst | number:'1.2-2' }}</td>
+                  <td class="color-purchases">{{ summary().totalPurchasesSgst | number:'1.2-2' }}</td>
+                  <td [class.negative-balance]="summary().netCgstPayable < 0" [class.positive-balance]="summary().netCgstPayable > 0">
+                    {{ (summary().netCgstPayable < 0 ? -summary().netCgstPayable : summary().netCgstPayable) | number:'1.2-2' }}{{ summary().netCgstPayable < 0 ? ' Cr' : ' Dr' }}
+                  </td>
+                  <td [class.negative-balance]="summary().netSgstPayable < 0" [class.positive-balance]="summary().netSgstPayable > 0">
+                    {{ (summary().netSgstPayable < 0 ? -summary().netSgstPayable : summary().netSgstPayable) | number:'1.2-2' }}{{ summary().netSgstPayable < 0 ? ' Cr' : ' Dr' }}
+                  </td>
+                  <td style="font-weight: bold; font-size: 0.92rem;" [class.negative-balance]="summary().netGstPayable < 0" [class.positive-balance]="summary().netGstPayable > 0">
+                    {{ (summary().netGstPayable < 0 ? -summary().netGstPayable : summary().netGstPayable) | number:'1.2-2' }}{{ summary().netGstPayable < 0 ? ' Cr' : ' Dr' }}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        }
+
+        <!-- TAB 2: HSN SUMMARY -->
+        @if (activeTab() === 'hsns') {
+          <div class="table-container">
+            <h3 class="print-section-title">HSN-Wise GST Distribution Summary</h3>
+            <table class="report-table">
+              <thead>
+                <tr>
+                  <th rowspan="2">HSN Code</th>
+                  <th rowspan="2" style="width: 200px;">Description</th>
+                  <th rowspan="2">GST Rate</th>
+                  <th colspan="3" class="header-outward">Outward (Sales)</th>
+                  <th colspan="3" class="header-inward">Inward (Purchases)</th>
+                </tr>
+                <tr>
+                  <th>Taxable (₹)</th>
+                  <th>CGST (₹)</th>
+                  <th>SGST (₹)</th>
+                  <th>Taxable (₹)</th>
+                  <th>CGST (₹)</th>
+                  <th>SGST (₹)</th>
+                </tr>
+              </thead>
+              <tbody>
+                @if (summary().hsns.length === 0) {
+                  <tr>
+                    <td colspan="9" style="text-align: center; color: var(--text-muted); padding: 24px;">
+                      No HSN records found for the selected date range.
+                    </td>
+                  </tr>
+                } @else {
+                  @for (hsn of summary().hsns; track hsn.hsnCode + '-' + hsn.gstRate) {
+                    <tr>
+                      <td style="font-weight: 600; color: var(--text-heading);">{{ hsn.hsnCode }}</td>
+                      <td style="text-align: left; font-size: 0.78rem; color: var(--text-muted);">{{ hsn.description }}</td>
+                      <td>{{ hsn.gstRate }}%</td>
+                      <td>{{ hsn.salesTaxable | number:'1.2-2' }}</td>
+                      <td class="color-sales">{{ hsn.salesCgst | number:'1.2-2' }}</td>
+                      <td class="color-sales">{{ hsn.salesSgst | number:'1.2-2' }}</td>
+                      <td>{{ hsn.purchasesTaxable | number:'1.2-2' }}</td>
+                      <td class="color-purchases">{{ hsn.purchasesCgst | number:'1.2-2' }}</td>
+                      <td class="color-purchases">{{ hsn.purchasesSgst | number:'1.2-2' }}</td>
+                    </tr>
+                  }
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+
+        <!-- TAB 3: SALES LEDGER -->
+        @if (activeTab() === 'sales') {
+          <div class="table-container">
+            <div class="ledger-header no-print" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+              <h3 class="print-section-title" style="margin-bottom: 0;">POS Sales Transaction Tax Sheet</h3>
+              <div class="search-box-compact">
+                <input type="text" class="form-control form-control-sm" placeholder="Search Invoice No or Customer..." 
+                       [ngModel]="searchText()" (ngModelChange)="searchText.set($event)">
+              </div>
+            </div>
+
+            <table class="report-table">
+              <thead>
+                <tr>
+                  <th>Invoice Number</th>
+                  <th>Date & Time</th>
+                  <th>Customer/Patient</th>
+                  <th>Gross Total (₹)</th>
+                  <th>Discount (₹)</th>
+                  <th>Taxable Value (₹)</th>
+                  <th>CGST (₹)</th>
+                  <th>SGST (₹)</th>
+                  <th>Total GST (₹)</th>
+                  <th>Collected (₹)</th>
+                </tr>
+              </thead>
+              <tbody>
+                @if (filteredSales().length === 0) {
+                  <tr>
+                    <td colspan="10" style="text-align: center; color: var(--text-muted); padding: 24px;">
+                      No sales matching search query were found.
+                    </td>
+                  </tr>
+                } @else {
+                  @for (tx of filteredSales(); track tx.transactionNumber) {
+                    <tr>
+                      <td style="font-weight: 600; color: var(--color-primary);">{{ tx.transactionNumber }}</td>
+                      <td style="font-size: 0.78rem;">{{ tx.date | date:'medium' }}</td>
+                      <td style="text-align: left; font-weight: 600;">{{ tx.partyName }}</td>
+                      <td>{{ tx.grossAmount | number:'1.2-2' }}</td>
+                      <td style="color: var(--color-danger);">{{ tx.discountAmount | number:'1.2-2' }}</td>
+                      <td style="font-weight: 600;">{{ tx.taxableAmount | number:'1.2-2' }}</td>
+                      <td class="color-sales">{{ tx.cgstAmount | number:'1.2-2' }}</td>
+                      <td class="color-sales">{{ tx.sgstAmount | number:'1.2-2' }}</td>
+                      <td style="font-weight: bold;">{{ tx.totalGst | number:'1.2-2' }}</td>
+                      <td style="font-weight: 800; color: var(--color-success);">₹{{ tx.finalAmount | number:'1.2-2' }}</td>
+                    </tr>
+                  }
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+
+        <!-- TAB 4: PURCHASES LEDGER -->
+        @if (activeTab() === 'purchases') {
+          <div class="table-container">
+            <div class="ledger-header no-print" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+              <h3 class="print-section-title" style="margin-bottom: 0;">Wholesaler Purchases Inward Tax Sheet</h3>
+              <div class="search-box-compact">
+                <input type="text" class="form-control form-control-sm" placeholder="Search Bill No, Invoice or Supplier..." 
+                       [ngModel]="searchText()" (ngModelChange)="searchText.set($event)">
+              </div>
+            </div>
+
+            <table class="report-table">
+              <thead>
+                <tr>
+                  <th>Bill Number</th>
+                  <th>Invoice Ref No</th>
+                  <th>Date & Time</th>
+                  <th>Wholesaler/Supplier</th>
+                  <th>Supplier GSTIN</th>
+                  <th>Gross Cost (₹)</th>
+                  <th>Discount (₹)</th>
+                  <th>Taxable base (₹)</th>
+                  <th>Input CGST (₹)</th>
+                  <th>Input SGST (₹)</th>
+                  <th>Input GST (₹)</th>
+                  <th>Final Bill (₹)</th>
+                </tr>
+              </thead>
+              <tbody>
+                @if (filteredPurchases().length === 0) {
+                  <tr>
+                    <td colspan="12" style="text-align: center; color: var(--text-muted); padding: 24px;">
+                      No inward purchases matching search query were found.
+                    </td>
+                  </tr>
+                } @else {
+                  @for (tx of filteredPurchases(); track tx.transactionNumber) {
+                    <tr>
+                      <td style="font-weight: 600; color: var(--color-primary);">{{ tx.transactionNumber }}</td>
+                      <td style="font-weight: 600; color: var(--text-muted);">{{ tx.referenceNumber }}</td>
+                      <td style="font-size: 0.78rem;">{{ tx.date | date:'medium' }}</td>
+                      <td style="text-align: left; font-weight: 600;">{{ tx.partyName }}</td>
+                      <td style="font-weight: bold; font-family: monospace; font-size: 0.78rem;">{{ tx.gstin }}</td>
+                      <td>{{ tx.grossAmount | number:'1.2-2' }}</td>
+                      <td style="color: var(--color-danger);">{{ tx.discountAmount | number:'1.2-2' }}</td>
+                      <td style="font-weight: 600;">{{ tx.taxableAmount | number:'1.2-2' }}</td>
+                      <td class="color-purchases">{{ tx.cgstAmount | number:'1.2-2' }}</td>
+                      <td class="color-purchases">{{ tx.sgstAmount | number:'1.2-2' }}</td>
+                      <td style="font-weight: bold;">{{ tx.totalGst | number:'1.2-2' }}</td>
+                      <td style="font-weight: 800; color: var(--color-success);">₹{{ tx.finalAmount | number:'1.2-2' }}</td>
+                    </tr>
+                  }
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+
+      </div>
+    </div>
+  } @else {
+    <div class="glass-panel" style="padding: 40px; text-align: center; border: 1px dashed var(--border-color);">
+      <p style="color: var(--text-muted); font-size: 0.95rem;">No GST data loaded. Please choose dates and click "Retrieve Report".</p>
+    </div>
+  }
+</div>

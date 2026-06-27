@@ -1,0 +1,118 @@
+@if (auth.isAuthenticated()) {
+  <div class="app-container">
+    <!-- Horizontal Top Navigation Bar -->
+    <header class="top-navbar">
+      <!-- Left Section: Brand Logo -->
+      <div class="brand">
+        <div class="brand-icon">✚</div>
+        <!-- <div class="brand-name">Arpita Medical</div> -->
+        <a class="brand-name" routerLink="/dashboard" routerLinkActive="active">
+          <span> Arpita Medical</span>
+        </a>
+      </div>
+
+      <!-- Center Section: Horizontal Nav Menu Links -->
+      <nav class="nav-menu">
+        <a class="nav-item" routerLink="/sales-billing" routerLinkActive="active">
+          <span>🧾  Billing</span>
+        </a>
+        <div class="nav-item-dropdown" 
+             [class.active]="isStockActive()"
+             [class.show]="isStockDropdownOpen()">
+          <button class="dropdown-trigger" (click)="toggleStockDropdown($event)">
+            <span>📦 Stock ▾</span>
+          </button>
+          <div class="dropdown-content" (click)="closeStockDropdown()">
+            <a routerLink="/inventory" routerLinkActive="active-sub">1️⃣ Stock Inventory</a>
+            <a routerLink="/expiry-disposal" routerLinkActive="active-sub">2️⃣ Expiry & Disposal</a>
+            <a routerLink="/expired-stockout" routerLinkActive="active-sub">3️⃣ Expired Stockout</a>
+          </div>
+        </div>
+        <div class="nav-item-dropdown" 
+             [class.active]="isPurchaseActive()"
+             [class.show]="isPurchaseDropdownOpen()">
+          <button class="dropdown-trigger" (click)="togglePurchaseDropdown($event)">
+            <span>🛒 Purchase ▾</span>
+          </button>
+          <div class="dropdown-content" (click)="closePurchaseDropdown()">
+            <a routerLink="/purchase/entry" routerLinkActive="active-sub">1️⃣ Purchase Entry</a>
+            <a routerLink="/purchase/draft" routerLinkActive="active-sub">2️⃣ Purchase Draft</a>
+            <a routerLink="/purchase/saved" routerLinkActive="active-sub">3️⃣ Purchase Saved</a>
+            <a routerLink="/purchase/order" routerLinkActive="active-sub">4️⃣ Order Purchase</a>
+            <a routerLink="/purchase/order-history" routerLinkActive="active-sub">5️⃣ Order History</a>
+          </div>
+        </div>
+
+        <!-- Register Dropdown -->
+        <div class="nav-item-dropdown"
+             [class.active]="isRegisterActive()"
+             [class.show]="isRegisterDropdownOpen()">
+          <button class="dropdown-trigger" (click)="toggleRegisterDropdown($event)">
+            <span>📋 Register ▾</span>
+          </button>
+          <div class="dropdown-content" (click)="closeRegisterDropdown()">
+            <a routerLink="/medicines" routerLinkActive="active-sub">💊 Medicine Master</a>
+            <a routerLink="/suppliers" routerLinkActive="active-sub">🤝 Suppliers</a>
+            <a routerLink="/customers" routerLinkActive="active-sub">👤 Customers</a>
+          </div>
+        </div>
+        
+        
+        
+
+        <a class="nav-item" routerLink="/gst-filing" routerLinkActive="active">
+          <span>🏛️ GST Returns</span>
+        </a>
+        <!-- Analytics Dropdown -->
+        <div class="nav-item-dropdown"
+             [class.active]="isAnalyticsActive()"
+             [class.show]="isAnalyticsDropdownOpen()">
+          <button class="dropdown-trigger" (click)="toggleAnalyticsDropdown($event)">
+            <span>📈 Analytics ▾</span>
+          </button>
+          <div class="dropdown-content" (click)="closeAnalyticsDropdown()">
+            <a routerLink="/sales-analysis" routerLinkActive="active-sub">📊 Sales Analytics</a>
+            <a routerLink="/purchase-analysis" routerLinkActive="active-sub">🛒 Purchase Analytics</a>
+            <a routerLink="/customer-analytics" routerLinkActive="active-sub">👤 Customer Analytics</a>
+          </div>
+        </div>
+        
+       
+      </nav>
+
+      <div class="top-navbar-right">
+        <div class="system-clock">{{ currentTime() }}</div>
+        
+        <button class="theme-toggle-btn" (click)="toggleTheme()" [title]="isLightTheme() ? 'Switch to Dark Theme' : 'Switch to Light Theme'">
+          {{ isLightTheme() ? '🌙' : '☀️' }}
+        </button>
+
+        <button class="logout-icon-btn" (click)="onLogout()" title="Logout">
+          🚪
+        </button>
+
+        <div class="profile-widget">
+          <div class="profile-name" [title]="auth.userFullName()">{{ auth.userFullName() }}</div>
+          <span class="badge profile-role" [class]="getRoleClass(auth.userRole())">
+            {{ auth.userRole()?.replace('_', ' ') }}
+          </span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main View Panel -->
+    <main class="main-content">
+      <!-- <header class="topbar">
+        <h1 class="page-title">{{ getPageTitle() }}</h1>
+      </header> -->
+
+      <div class="router-container animate-fade-in">
+        <router-outlet></router-outlet>
+      </div>
+    </main>
+  </div>
+} @else {
+  <div class="fullscreen-shell animate-fade-in">
+    <router-outlet></router-outlet>
+  </div>
+}
