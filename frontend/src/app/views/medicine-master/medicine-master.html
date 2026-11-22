@@ -26,14 +26,23 @@
     </button>
   </div>
 
-  <!-- Register Product Button -->
-  @if (auth.hasRole(['ADMIN', 'INVENTORY_MANAGER', 'PHARMACIST'])) {
-    <div>
+  <!-- Register Product & Import/Export Buttons -->
+  <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+    <button class="btn btn-secondary" (click)="exportToCsv()" [disabled]="loading()">
+      📤 Export Catalogue
+    </button>
+    
+    @if (auth.hasRole(['ADMIN', 'INVENTORY_MANAGER', 'PHARMACIST'])) {
+      <label class="btn btn-secondary" style="margin: 0; cursor: pointer; display: inline-flex; align-items: center;" [class.disabled]="loading()">
+        📥 Import Excel (CSV)
+        <input type="file" accept=".csv" style="display: none;" (change)="triggerImport($event)" [disabled]="loading()">
+      </label>
+
       <button class="btn btn-primary" (click)="openAddModal()">
         ➕ Register Master Product
       </button>
-    </div>
-  }
+    }
+  </div>
 </div>
 
 @if (loading()) {
@@ -164,21 +173,13 @@
           <div class="input-group" style="margin-bottom: 0;">
             <label class="input-label">HSN Code *</label>
             <select id="mas-field-hsn" class="form-input" [value]="formHsnCode()" (change)="onHsnChange($any($event.target).value)" (keydown.enter)="onMasterEnter($event, 'hsn')" (keydown.escape)="onMasterEscape($event, 'hsn')">
-              <option value="3004">3004 (Medicines/Formulations - 12%)</option>
-              <option value="3002">3002 (Vaccines/Blood - 5%)</option>
-              <option value="9021">9021 (Orthopaedic/Stents - 5%)</option>
-              <option value="3003">3003 (Medicaments Mixed - 12%)</option>
-              <option value="3005">3005 (Bandages/Dressings - 12%)</option>
-              <option value="3006">3006 (Surgical Sutures - 12%)</option>
-              <option value="9018">9018 (Surgical Instruments - 12%)</option>
-              <option value="3304">3304 (Cosmetics/Skin-care - 18%)</option>
-              <option value="2106">2106 (Protein Supplements - 18%)</option>
-              <option value="3808">3808 (Sanitizers/Disinfectants - 18%)</option>
-              <option value="4015">4015 (Surgical Gloves - 18%)</option>
-              <option value="9025">9025 (Thermometers - 18%)</option>
-              <option value="9027">9027 (Diagnostic/BP Monitors - 18%)</option>
-              <option value="30066030">30066030 (Oral Contraceptive - 0%)</option>
-              <option value="others">Other/Custom (General Slab - 12%)</option>
+              @for (hsn of hsnCodes(); track hsn.id) {
+                <option [value]="hsn.code">
+                  {{ hsn.code }} - {{ hsn.description || 'General Category' }} ({{ hsn.cgst + hsn.sgst }}% GST)
+                </option>
+              } @empty {
+                <option value="3004">3004 - Packaged Medicines (12% GST)</option>
+              }
             </select>
           </div>
           <div class="input-group" style="margin-bottom: 0;">
@@ -205,11 +206,11 @@
           </div>
           <div class="input-group" style="margin-bottom: 0;">
             <label class="input-label">CGST Split *</label>
-            <input id="mas-field-cgst" type="number" step="0.1" class="form-input" [value]="formCgst()" (input)="formCgst.set(+$any($event.target).value)" (keydown.enter)="onMasterEnter($event, 'cgst')" (keydown.escape)="onMasterEscape($event, 'cgst')" min="0" max="14" required>
+            <input id="mas-field-cgst" type="number" step="0.1" class="form-input" [value]="formCgst()" (keydown.enter)="onMasterEnter($event, 'cgst')" (keydown.escape)="onMasterEscape($event, 'cgst')" min="0" max="14" readonly required style="background: rgba(255, 255, 255, 0.05); color: #94a3b8; cursor: not-allowed;">
           </div>
           <div class="input-group" style="margin-bottom: 0;">
             <label class="input-label">SGST Split *</label>
-            <input id="mas-field-sgst" type="number" step="0.1" class="form-input" [value]="formSgst()" (input)="formSgst.set(+$any($event.target).value)" (keydown.enter)="onMasterEnter($event, 'sgst')" (keydown.escape)="onMasterEscape($event, 'sgst')" min="0" max="14" required>
+            <input id="mas-field-sgst" type="number" step="0.1" class="form-input" [value]="formSgst()" (keydown.enter)="onMasterEnter($event, 'sgst')" (keydown.escape)="onMasterEscape($event, 'sgst')" min="0" max="14" readonly required style="background: rgba(255, 255, 255, 0.05); color: #94a3b8; cursor: not-allowed;">
           </div>
         </div>
 

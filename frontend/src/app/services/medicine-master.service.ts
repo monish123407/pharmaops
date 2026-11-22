@@ -37,4 +37,14 @@ export class MedicineMasterService {
   delete(id: number): Observable<void> {
     return this.http.delete<void>(`${this.apiUrl}/${id}`);
   }
+
+  exportToCsv(): Observable<Blob> {
+    return this.http.get(`${this.apiUrl}/export`, { responseType: 'blob' });
+  }
+
+  importFromCsv(file: File): Observable<any> {
+    const formData = new FormData();
+    formData.append('file', file);
+    return this.http.post<any>(`${this.apiUrl}/import`, formData);
+  }
 }

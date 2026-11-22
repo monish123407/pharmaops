@@ -1,0 +1,317 @@
+<div class="history-container">
+  <!-- Page Header -->
+  <div class="page-header">
+    <div class="header-left">
+      <span class="header-icon">🧾</span>
+      <div>
+        <h1 class="page-title">Billing Transaction History</h1>
+        <p class="page-subtitle">Search, track, and print all customer invoice ledgers</p>
+      </div>
+    </div>
+    <div class="header-right">
+      <button class="btn btn-outline" routerLink="/sales-billing">
+        ← Back to Billing
+      </button>
+    </div>
+  </div>
+
+  <!-- Summary Cards -->
+  <div class="summary-cards-row">
+    <div class="stat-card revenue">
+      <div class="stat-icon">💰</div>
+      <div class="stat-info">
+        <div class="stat-label">Total Revenue</div>
+        <div class="stat-value">₹{{ totalRevenue() | number:'1.2-2' }}</div>
+      </div>
+    </div>
+    
+    <div class="stat-card invoices">
+      <div class="stat-icon">🧾</div>
+      <div class="stat-info">
+        <div class="stat-label">Total Invoices</div>
+        <div class="stat-value">{{ invoiceCount() }}</div>
+      </div>
+    </div>
+
+    <div class="stat-card discount">
+      <div class="stat-icon">🏷️</div>
+      <div class="stat-info">
+        <div class="stat-label">Total Discounts Given</div>
+        <div class="stat-value">₹{{ totalDiscount() | number:'1.2-2' }}</div>
+      </div>
+    </div>
+
+    <div class="stat-card tax">
+      <div class="stat-icon">🏛️</div>
+      <div class="stat-info">
+        <div class="stat-label">Tax Billed (GST)</div>
+        <div class="stat-value">₹{{ totalTax() | number:'1.2-2' }}</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filter & Controls Toolbar -->
+  <div class="filter-panel">
+    <div class="filter-group date-group">
+      <label class="filter-label">From</label>
+      <input type="date" class="form-input" [ngModel]="startDate()" (ngModelChange)="startDate.set($event)">
+    </div>
+    <div class="filter-group date-group">
+      <label class="filter-label">To</label>
+      <input type="date" class="form-input" [ngModel]="endDate()" (ngModelChange)="endDate.set($event)">
+    </div>
+    <div class="filter-group method-group">
+      <label class="filter-label">Payment Method</label>
+      <select class="form-input form-select" [ngModel]="paymentMethod()" (ngModelChange)="paymentMethod.set($event)">
+        <option value="ALL">All Methods</option>
+        <option value="Cash">💵 Cash</option>
+        <option value="UPI">📱 UPI</option>
+        <option value="Bank Transfer">🏦 Bank Transfer</option>
+        <option value="Cheque">📄 Cheque</option>
+        <option value="Credit Card">💳 Credit Card</option>
+        <option value="Debit Card">💳 Debit Card</option>
+      </select>
+    </div>
+    <div class="filter-group search-group">
+      <label class="filter-label">Quick Search</label>
+      <input type="text" class="form-input" placeholder="Invoice #, customer name, phone, or staff..." [ngModel]="searchQuery()" (ngModelChange)="searchQuery.set($event)">
+    </div>
+    <div class="filter-actions">
+      <button class="btn btn-primary" (click)="applyFilters()">🔍 Apply</button>
+      <button class="btn btn-ghost" (click)="resetFilters(); applyFilters()">↺ Reset</button>
+    </div>
+  </div>
+
+  <!-- Loading State -->
+  @if (loading()) {
+    <div class="loading-state">
+      <div class="spinner"></div>
+      <p>Fetching transaction archives...</p>
+    </div>
+  } @else if (processedSales().length === 0) {
+    <!-- Empty State -->
+    <div class="empty-state">
+      <div class="empty-icon">📭</div>
+      <h3>No Billing Records Found</h3>
+      <p>We couldn't find any invoices matching your selected filters.</p>
+    </div>
+  } @else {
+    <!-- Transaction Table -->
+    <div class="table-wrapper">
+      <table class="history-table">
+        <thead>
+          <tr>
+            <th (click)="toggleSort('invoiceNumber')">
+              Invoice No. {{ sortColumn() === 'invoiceNumber' ? (sortDirection() === 'asc' ? '▲' : '▼') : '' }}
+            </th>
+            <th (click)="toggleSort('saleDate')">
+              Date &amp; Time {{ sortColumn() === 'saleDate' ? (sortDirection() === 'asc' ? '▲' : '▼') : '' }}
+            </th>
+            <th (click)="toggleSort('customerName')">
+              Customer Details {{ sortColumn() === 'customerName' ? (sortDirection() === 'asc' ? '▲' : '▼') : '' }}
+            </th>
+            <th (click)="toggleSort('paymentMethod')">
+              Payment {{ sortColumn() === 'paymentMethod' ? (sortDirection() === 'asc' ? '▲' : '▼') : '' }}
+            </th>
+            <th class="text-right" (click)="toggleSort('totalAmount')">
+              Subtotal {{ sortColumn() === 'totalAmount' ? (sortDirection() === 'asc' ? '▲' : '▼') : '' }}
+            </th>
+            <th class="text-right" (click)="toggleSort('discountAmount')">
+              Discount {{ sortColumn() === 'discountAmount' ? (sortDirection() === 'asc' ? '▲' : '▼') : '' }}
+            </th>
+            <th class="text-right" (click)="toggleSort('finalAmount')">
+              Grand Total {{ sortColumn() === 'finalAmount' ? (sortDirection() === 'asc' ? '▲' : '▼') : '' }}
+            </th>
+            <th class="text-center">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (sale of paginatedSales(); track sale.id) {
+            <tr class="sale-row">
+              <td class="invoice-cell" (click)="openPreview(sale)">
+                {{ sale.invoiceNumber }}
+              </td>
+              <td class="date-cell">
+                {{ formatDateTime(sale.saleDate) }}
+              </td>
+              <td class="customer-cell">
+                <div class="cust-name">{{ sale.customerName }}</div>
+                @if (sale.patientPhone) {
+                  <div class="cust-phone">📱 {{ sale.patientPhone }}</div>
+                }
+              </td>
+              <td>
+                <span class="payment-badge" [class]="sale.paymentMethod.toLowerCase()">
+                  {{ sale.paymentMethod }}
+                </span>
+              </td>
+              <td class="text-right font-tabular">
+                ₹{{ sale.totalAmount | number:'1.2-2' }}
+              </td>
+              <td class="text-right font-tabular discount-cell">
+                ₹{{ sale.discountAmount | number:'1.2-2' }}
+              </td>
+              <td class="text-right font-tabular final-cell">
+                ₹{{ sale.finalAmount | number:'1.2-2' }}
+              </td>
+              <td class="text-center">
+                <button class="btn-action-view" (click)="openPreview(sale)">
+                  👁️ Details
+                </button>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Pagination Footer -->
+    <div class="pagination-footer">
+      <div class="pagination-info">
+        Showing <strong>{{ (currentPage() - 1) * pageSize() + 1 }}</strong> to 
+        <strong>{{ Math.min(currentPage() * pageSize(), processedSales().length) }}</strong> of 
+        <strong>{{ processedSales().length }}</strong> transactions
+      </div>
+      <div class="pagination-buttons">
+        <button class="btn btn-page" [disabled]="currentPage() === 1" (click)="setPage(currentPage() - 1)">
+          ‹ Prev
+        </button>
+        
+        @for (p of [].constructor(totalPages()); track $index) {
+          @if ($index + 1 === 1 || $index + 1 === totalPages() || Math.abs($index + 1 - currentPage()) <= 1) {
+            <button class="btn btn-page" [class.active]="$index + 1 === currentPage()" (click)="setPage($index + 1)">
+              {{ $index + 1 }}
+            </button>
+          } @else if ($index + 1 === 2 || $index + 1 === totalPages() - 1) {
+            <span class="pagination-ellipsis">...</span>
+          }
+        }
+
+        <button class="btn btn-page" [disabled]="currentPage() === totalPages()" (click)="setPage(currentPage() + 1)">
+          Next ›
+        </button>
+      </div>
+    </div>
+  }
+</div>
+
+<!-- INVOICE DETAILS PREVIEW MODAL -->
+@if (isPreviewOpen() && selectedSale()) {
+  <div class="modal-backdrop" (click)="closePreview()">
+    <div class="modal-card" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>🧾 Invoice Receipt Preview</h2>
+        <button class="btn-close" (click)="closePreview()">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <!-- Printable Invoice Container -->
+        <div id="printable-invoice" class="invoice-print-container">
+          <!-- Pharmacy Details -->
+          <div class="invoice-header">
+            <div>
+              <div class="invoice-title">✚ ARPITA MEDICALS</div>
+              <div>Retail Pharmacy &amp; Healthcare Suite</div>
+              <div>12/A College Street, Kolkata, WB</div>
+              <div>Phone: +91 98765 43210</div>
+            </div>
+            <div class="invoice-meta">
+              <div style="font-size: 1.1rem; font-weight: bold; color: var(--color-primary);">INVOICE RECEIPT</div>
+              <div><strong>Inv No:</strong> {{ selectedSale()!.invoiceNumber }}</div>
+              <div><strong>Date:</strong> {{ formatDateTime(selectedSale()!.saleDate) }}</div>
+              <div><strong>Cashier:</strong> {{ selectedSale()!.cashierName }}</div>
+            </div>
+          </div>
+
+          <!-- Customer Info -->
+          <div class="invoice-section-title">Patient / Customer Info</div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; font-size: 0.85rem; margin-bottom: 15px;">
+            <div>
+              <div><strong>Name:</strong> {{ selectedSale()!.customerName }}</div>
+              @if (selectedSale()!.patientPhone) {
+                <div><strong>Phone:</strong> {{ selectedSale()!.patientPhone }}</div>
+              }
+              @if (selectedSale()!.patientAddress) {
+                <div><strong>Address:</strong> {{ selectedSale()!.patientAddress }}</div>
+              }
+            </div>
+            <div>
+              @if (selectedSale()!.doctorName) {
+                <div><strong>Consulting Doctor:</strong> Dr. {{ selectedSale()!.doctorName }}</div>
+              }
+              <div><strong>Payment Method:</strong> {{ selectedSale()!.paymentMethod }}</div>
+            </div>
+          </div>
+
+          <!-- Medicines Table -->
+          <div class="invoice-section-title">Billed Formulations</div>
+          <table class="receipt-items-table">
+            <thead>
+              <tr>
+                <th>SNo.</th>
+                <th>Product Description</th>
+                <th>Batch</th>
+                <th>Expiry</th>
+                <th>HSN</th>
+                <th>GST %</th>
+                <th class="text-right">Qty</th>
+                <th class="text-right">Rate</th>
+                <th class="text-right">Subtotal</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (item of selectedSale()!.items; track item.id) {
+                <tr>
+                  <td>{{ $index + 1 }}</td>
+                  <td style="font-weight: 600;">{{ item.medicineName }}</td>
+                  <td>{{ item.batchNumber || '—' }}</td>
+                  <td>{{ item.expiryDate || '—' }}</td>
+                  <td>{{ item.hsnCode || '—' }}</td>
+                  <td>{{ item.gstRate ? item.gstRate + '%' : '—' }}</td>
+                  <td class="text-right">{{ item.quantity }}</td>
+                  <td class="text-right">₹{{ item.unitPrice | number:'1.2-2' }}</td>
+                  <td class="text-right">₹{{ item.subtotal | number:'1.2-2' }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+
+          <!-- Totals -->
+          <div style="display: flex; justify-content: flex-end; margin-top: 15px;">
+            <table class="receipt-totals-table">
+              <tr>
+                <td>Subtotal Billed:</td>
+                <td class="text-right">₹{{ selectedSale()!.totalAmount | number:'1.2-2' }}</td>
+              </tr>
+              @if (selectedSale()!.discountAmount > 0) {
+                <tr style="color: #ef4444;">
+                  <td>Discount Deducted:</td>
+                  <td class="text-right">−₹{{ selectedSale()!.discountAmount | number:'1.2-2' }}</td>
+                </tr>
+              }
+              @if (selectedSale()!.taxAmount > 0) {
+                <tr>
+                  <td>Total Tax Included (GST):</td>
+                  <td class="text-right">₹{{ selectedSale()!.taxAmount | number:'1.2-2' }}</td>
+                </tr>
+              }
+              <tr class="grand-total-row">
+                <td>Grand Total:</td>
+                <td class="text-right">₹{{ selectedSale()!.finalAmount | number:'1.2-2' }}</td>
+              </tr>
+            </table>
+          </div>
+
+          <div style="margin-top: 30px; text-align: center; font-size: 0.75rem; color: #777; border-top: 1px dashed #ccc; padding-top: 10px;">
+            Thank you for shopping with Arpita Medicals! Get well soon.
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-outline" (click)="closePreview()">Close</button>
+        <button class="btn btn-primary" (click)="printInvoice()">🖨️ Print Receipt</button>
+      </div>
+    </div>
+  </div>
+}

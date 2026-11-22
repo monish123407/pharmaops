@@ -1,18 +1,22 @@
 import { Component, signal, computed, inject, OnInit } from '@angular/core';
 import { CommonModule, DecimalPipe, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { MatSnackBarModule, MatSnackBar } from '@angular/material/snack-bar';
 import { SalesAnalysisService } from '../../services/sales-analysis.service';
+import { ExpenseService } from '../../services/expense.service';
+import { ExpenseSummary } from '../../models/types';
 
 @Component({
   selector: 'app-sales-analysis',
   standalone: true,
-  imports: [CommonModule, DecimalPipe, DatePipe, FormsModule, MatSnackBarModule],
+  imports: [CommonModule, DecimalPipe, DatePipe, FormsModule, RouterLink, MatSnackBarModule],
   templateUrl: './sales-analysis.html',
   styleUrl: './sales-analysis.css'
 })
 export class SalesAnalysisComponent implements OnInit {
   private readonly analysisService = inject(SalesAnalysisService);
+  private readonly expenseService  = inject(ExpenseService);
   private readonly snackBar = inject(MatSnackBar);
 
   // Live Current Date
@@ -20,10 +24,11 @@ export class SalesAnalysisComponent implements OnInit {
 
   // States
   startDate = signal<string>('');
-  endDate = signal<string>('');
+  endDate   = signal<string>('');
   activePreset = signal<string>('thisMonth');
-  summary = signal<any>(null);
-  loading = signal<boolean>(false);
+  summary      = signal<any>(null);
+  expSummary   = signal<ExpenseSummary | null>(null);
+  loading      = signal<boolean>(false);
 
   // Active chart focus metric: 'sales' or 'profit' or 'orders'
   activeChartMetric = signal<string>('sales');
@@ -113,6 +118,11 @@ export class SalesAnalysisComponent implements OnInit {
         console.error(err);
       }
     });
+    // Load expenses for same period
+    this.expenseService.getSummary(this.startDate(), this.endDate()).subscribe({
+      next: (exp) => this.expSummary.set(exp),
+      error: ()   => {}
+    });
   }
 
   applyCustomRange() {
@@ -127,6 +137,15 @@ export class SalesAnalysisComponent implements OnInit {
     this.quickSelect('thisMonth');
     this.loadAnalysisData();
   }
+
+  // Expense computed helpers
+  totalExpenses = computed(() => this.expSummary()?.totalForRange ?? 0);
+  grossProfit = computed(() => this.summary()?.totalProfit?.currentValue ?? 0);
+  netAfterExpenses  = computed(() => this.grossProfit() - this.totalExpenses());
+  expenseRatio      = computed(() => {
+    const gp = this.grossProfit();
+    return gp > 0 ? (this.totalExpenses() / gp) * 100 : 0;
+  });
 
   // Categories present in active product performance grid
   categories = computed(() => {

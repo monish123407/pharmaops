@@ -1,9 +1,100 @@
 /* Dashboard Metrics Layout */
+
+/* ── Profit Banner ──────────────────────────────────────────── */
+.profit-banner {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 20px 28px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.profit-block {
+  flex: 1;
+  min-width: 150px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+}
+
+.profit-block-net {
+  background: rgba(20, 184, 166, 0.06);
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(20, 184, 166, 0.2);
+}
+
+.profit-block-loss {
+  background: rgba(239, 68, 68, 0.06) !important;
+  border-color: rgba(239, 68, 68, 0.2) !important;
+}
+
+.profit-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.profit-value {
+  font-size: 1.3rem;
+  font-weight: 800;
+  font-family: 'Outfit', sans-serif;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.profit-green { color: #4ade80; }
+.profit-red   { color: #f87171; }
+
+.profit-divider {
+  font-size: 1.6rem;
+  font-weight: 300;
+  color: var(--text-muted);
+  padding: 0 4px;
+  flex-shrink: 0;
+  align-self: center;
+}
+
+.profit-divider-v {
+  width: 1px;
+  height: 50px;
+  background: var(--border-color);
+  margin: 0 12px;
+  flex-shrink: 0;
+  align-self: center;
+}
+
+/* Light theme profit banner */
+:host-context(.light-theme) .profit-banner {
+  background: #ffffff;
+  border-color: #e5e7eb;
+}
+:host-context(.light-theme) .profit-green { color: #16a34a; }
+:host-context(.light-theme) .profit-red   { color: #dc2626; }
+
+/* ── Stats Grid ─────────────────────────────────────────────── */
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 24px;
-  margin-bottom: 32px;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 16px;
+  margin-bottom: 28px;
+}
+
+@media (max-width: 1200px) {
+  .stats-grid { grid-template-columns: repeat(3, 1fr); }
+}
+@media (max-width: 700px) {
+  .stats-grid { grid-template-columns: repeat(2, 1fr); }
 }
 
 .stat-card {
@@ -20,12 +111,15 @@
 }
 
 .stat-value {
-  font-size: 2.2rem;
+  font-size: 1.5rem;
   font-weight: 800;
   font-family: 'Outfit', sans-serif;
   color: var(--text-heading);
   line-height: 1.1;
   margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .stat-label {

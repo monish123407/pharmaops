@@ -112,7 +112,7 @@
       <!-- Card 3: Net Profit -->
       <div class="metric-card profit">
         <div class="metric-header">
-          <span class="metric-label">Net Profit</span>
+          <span class="metric-label">Gross Profit</span>
           <span class="metric-icon">🍀</span>
         </div>
         <div class="metric-value">₹{{ (summary().totalProfit.currentValue || 0) | number:'1.2-2' }}</div>
@@ -207,7 +207,101 @@
 
     </div>
 
+    <!-- ══════════════════════════════════════════════════════════
+         EXPENSES vs PROFIT PANEL
+         ══════════════════════════════════════════════════════════ -->
+    <div class="expense-profit-panel">
+
+      <!-- 3 Expense KPI Cards -->
+      <div class="exp-kpi-row">
+
+        <div class="exp-kpi-card exp-card-red">
+          <div class="exp-kpi-icon">💸</div>
+          <div class="exp-kpi-body">
+            <div class="exp-kpi-label">Total Expenses</div>
+            <div class="exp-kpi-value">₹{{ totalExpenses() | number:'1.2-2' }}</div>
+            <div class="exp-kpi-sub">for selected period</div>
+          </div>
+        </div>
+
+        <div class="exp-kpi-card exp-card-green">
+          <div class="exp-kpi-icon">📈</div>
+          <div class="exp-kpi-body">
+            <div class="exp-kpi-label">Gross Profit</div>
+            <div class="exp-kpi-value">₹{{ grossProfit() | number:'1.2-2' }}</div>
+            <div class="exp-kpi-sub">profit before expenses</div>
+          </div>
+        </div>
+
+        <div class="exp-kpi-card" [class.exp-card-teal]="netAfterExpenses() >= 0" [class.exp-card-danger]="netAfterExpenses() < 0">
+          <div class="exp-kpi-icon">{{ netAfterExpenses() >= 0 ? '🏆' : '📉' }}</div>
+          <div class="exp-kpi-body">
+            <div class="exp-kpi-label">Net Profit (after expenses)</div>
+            <div class="exp-kpi-value" [class.text-profit]="netAfterExpenses() >= 0" [class.text-loss]="netAfterExpenses() < 0">
+              ₹{{ netAfterExpenses() | number:'1.2-2' }}
+            </div>
+            <div class="exp-kpi-sub">expense ratio: {{ expenseRatio() | number:'1.1-1' }}%</div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Expense vs Profit Visual Bar -->
+      <div class="exp-vs-rev-bar-wrap">
+        <div class="exp-vs-label">
+          <span>Gross Profit vs Expenses — Period Breakdown</span>
+          @if (grossProfit() > 0) {
+            <span class="exp-vs-pct">{{ (100 - expenseRatio()) | number:'1.1-1' }}% retained as net profit</span>
+          }
+        </div>
+        <div class="exp-vs-track">
+          <div class="exp-vs-revenue-fill"
+               [style.width.%]="grossProfit() > 0 ? 100 : 0"
+               title="Gross Profit: ₹{{ grossProfit() | number:'1.2-2' }}">
+          </div>
+          <div class="exp-vs-expense-fill"
+               [style.width.%]="grossProfit() > 0 ? expenseRatio() : 0"
+               title="Expenses: ₹{{ totalExpenses() | number:'1.2-2' }}">
+          </div>
+        </div>
+        <div class="exp-vs-legend">
+          <span class="legend-dot dot-green"></span><span>Gross Profit</span>
+          <span class="legend-dot dot-red"></span><span>Expenses</span>
+          <span class="legend-dot dot-teal"></span><span>Net Profit</span>
+        </div>
+      </div>
+
+      <!-- Expense Category Breakdown Table -->
+      @if (expSummary() && expSummary()!.categoryBreakdown.length > 0) {
+        <div class="exp-category-section">
+          <div class="exp-section-title">📊 Expense Breakdown by Category</div>
+          <div class="exp-cat-grid">
+            @for (item of expSummary()!.categoryBreakdown; track item.category) {
+              <div class="exp-cat-row">
+                <div class="exp-cat-name">{{ item.category }}</div>
+                <div class="exp-cat-bar-wrap">
+                  <div class="exp-cat-bar"
+                       [style.width.%]="totalExpenses() > 0 ? (item.total / totalExpenses()) * 100 : 0">
+                  </div>
+                </div>
+                <div class="exp-cat-amount">₹{{ item.total | number:'1.2-2' }}</div>
+                <div class="exp-cat-pct">
+                  {{ totalExpenses() > 0 ? ((item.total / totalExpenses()) * 100 | number:'1.1-1') : '0.0' }}%
+                </div>
+              </div>
+            }
+          </div>
+        </div>
+      } @else {
+        <div class="exp-empty">
+          <span>💡 No expenses recorded for this period. <a routerLink="/expenses" class="exp-link">Record expenses →</a></span>
+        </div>
+      }
+
+    </div>
+
     <!-- Widescreen Hourly Sales Trend Line Graph -->
+
     <div class="chart-container-panel">
       <div class="chart-header">
         <div class="chart-title">

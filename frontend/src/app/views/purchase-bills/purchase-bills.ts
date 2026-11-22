@@ -1478,4 +1478,32 @@ export class PurchaseBillsComponent implements OnInit {
     }
   }
 
+  deleteBill(bill: PurchaseBill) {
+    if (!bill.id) return;
+    const confirmMsg = `⚠️ Are you sure you want to delete Wholesaler Invoice: ${bill.invoiceNumber || 'N/A'} (Token: #${bill.tokenNumber || 'N/A'})?\n\nThis will permanently delete this invoice and automatically reverse all stock levels associated with it.`;
+    if (confirm(confirmMsg)) {
+      this.loading.set(true);
+      this.billService.delete(bill.id).subscribe({
+        next: () => {
+          this.snackBar.open(`🗑️ Purchase Invoice deleted successfully!`, 'Close', {
+            duration: 4000,
+            panelClass: ['snackbar-info'],
+            horizontalPosition: 'center',
+            verticalPosition: 'top'
+          });
+          this.loadInitialData();
+        },
+        error: (err) => {
+          this.loading.set(false);
+          this.snackBar.open(`🛑 Failed to delete purchase invoice.`, 'Close', {
+            duration: 4000,
+            panelClass: ['snackbar-danger'],
+            horizontalPosition: 'center',
+            verticalPosition: 'top'
+          });
+          console.error(err);
+        }
+      });
+    }
+  }
 }

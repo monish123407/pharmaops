@@ -144,12 +144,13 @@ public class SalesAnalysisController {
         for (Sale sale : sales) {
             if (sale == null) continue;
 
-            double gross = sale.getTotalAmount() != null ? sale.getTotalAmount() : 0.0;
+            double gross = (sale.getTotalAmount() != null ? sale.getTotalAmount() : 0.0) 
+                         - (sale.getDiscountAmount() != null ? sale.getDiscountAmount() : 0.0);
             double disc = sale.getDiscountAmount() != null ? sale.getDiscountAmount() : 0.0;
             double tax = sale.getTaxAmount() != null ? sale.getTaxAmount() : 0.0;
             double net = sale.getFinalAmount() != null ? sale.getFinalAmount() : 0.0;
 
-            m.grossSales += gross;
+            m.grossSales += Math.max(0.0, gross);
             m.discountTotal += disc;
             m.netRevenue += net;
             m.salesTax += tax;

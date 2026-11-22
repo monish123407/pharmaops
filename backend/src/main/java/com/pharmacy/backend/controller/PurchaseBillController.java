@@ -55,16 +55,13 @@ public class PurchaseBillController {
         LocalDateTime purchaseDateTime = LocalDateTime.now();
         purchaseBill.setPurchaseDate(purchaseDateTime);
 
-        // Calculate next Token Number based on Financial Year resetting (April 1st)
         int currentYear = purchaseDateTime.getYear();
         int currentMonth = purchaseDateTime.getMonthValue();
         LocalDateTime financialYearStart;
         
         if (currentMonth >= 4) {
-            // Current Financial Year started on April 1st of Y
             financialYearStart = LocalDateTime.of(currentYear, 4, 1, 0, 0, 0);
         } else {
-            // Current Financial Year started on April 1st of Y-1
             financialYearStart = LocalDateTime.of(currentYear - 1, 4, 1, 0, 0, 0);
         }
         
@@ -72,21 +69,18 @@ public class PurchaseBillController {
         int nextToken = (maxToken != null) ? maxToken + 1 : 1;
         purchaseBill.setTokenNumber(nextToken);
 
-        // 2. Set relationship bindings
         for (PurchaseBillItem item : purchaseBill.getItems()) {
             item.setPurchaseBill(purchaseBill);
         }
 
-        // 3. Save purchase bill and its items transaction logs
         PurchaseBill savedBill = purchaseBillRepository.save(purchaseBill);
 
         // 4. Update or Add items in Active Stock inventory
         for (PurchaseBillItem item : savedBill.getItems()) {
-            // Lookup master details to get pack size, composition, manufacturer
             Optional<MedicineMaster> masterOpt = medicineMasterRepository.findFirstByProductCodeAndActiveTrue(
                     item.getProductCode()
             );
-            int packSize = 10; // default fallback
+            int packSize = 10;
             String composition = item.getProductName();
             String manufacturer = "Unknown";
             String category = "medicine";
@@ -106,25 +100,23 @@ public class PurchaseBillController {
                 ? (item.getQuantity() + item.getLoose()) * packSize 
                 : (item.getQuantity() + item.getLoose());
 
-            // Check if exact batch of SKU already exists in active stock
             Optional<Medicine> existingStock = medicineRepository.findFirstBySkuAndBatchNumberAndActiveTrue(
                     item.getProductCode(), item.getBatchNumber()
             );
 
-
+            double landedCostPricePerStrip = calculateLandedCostPricePerStrip(item);
 
             if (existingStock.isPresent()) {
-                // Increment stock level, update cost/mrp/expiry
                 Medicine medicine = existingStock.get();
                 medicine.setStockLevel(medicine.getStockLevel() + totalUnits);
-                medicine.setCostPrice(item.getRate());
+                medicine.setCostPrice(landedCostPricePerStrip);
                 medicine.setSellingPrice(item.getMrp());
                 medicine.setExpiryDate(item.getExpiryDate());
                 medicine.setBatchNumber(item.getBatchNumber());
                 medicine.setHsnCode(item.getHsnCode());
                 medicine.setGstRate(item.getCgstRate() + item.getSgstRate());
+                medicine.setPurchaseDate(savedBill.getPurchaseDate() != null ? savedBill.getPurchaseDate().toLocalDate() : java.time.LocalDate.now());
                 if (item.getReorderLevel() != null) {
-                    // reorderLevel entered as strips → convert to tablets for storage
                     medicine.setReorderLevel(isTabletOrCapsule
                         ? item.getReorderLevel() * packSize
                         : item.getReorderLevel());
@@ -134,7 +126,6 @@ public class PurchaseBillController {
                 }
                 medicineRepository.save(medicine);
             } else {
-                // Create a completely new medicine row inside stock
                 Medicine newStock = Medicine.builder()
                         .name(item.getProductName())
                         .genericName(composition)
@@ -147,7 +138,7 @@ public class PurchaseBillController {
                                     ? item.getReorderLevel() * packSize
                                     : item.getReorderLevel())
                                 : (isTabletOrCapsule ? packSize * 10 : 10))
-                        .costPrice(item.getRate())
+                        .costPrice(landedCostPricePerStrip)
                         .sellingPrice(item.getMrp())
                         .manufacturer(manufacturer)
                         .rackLocation(item.getRackLocation() != null && !item.getRackLocation().trim().isEmpty() 
@@ -155,6 +146,7 @@ public class PurchaseBillController {
                                 : (category.equalsIgnoreCase("cosmetics") ? "Rack-B" : "Rack-A"))
                         .hsnCode(item.getHsnCode())
                         .gstRate(item.getCgstRate() + item.getSgstRate())
+                        .purchaseDate(savedBill.getPurchaseDate() != null ? savedBill.getPurchaseDate().toLocalDate() : java.time.LocalDate.now())
                         .active(true)
                         .build();
 
@@ -202,12 +194,11 @@ public class PurchaseBillController {
             if (stockOpt.isPresent()) {
                 Medicine stock = stockOpt.get();
                 int newStockLevel = stock.getStockLevel() - totalUnits;
-                stock.setStockLevel(Math.max(0, newStockLevel)); // Option A: clip at 0
+                stock.setStockLevel(Math.max(0, newStockLevel));
                 medicineRepository.save(stock);
             }
         }
 
-        // 2. Clear old items and update header attributes
         existingBill.getItems().clear();
         existingBill.setInvoiceNumber(updatedBill.getInvoiceNumber());
         existingBill.setInvoiceDate(updatedBill.getInvoiceDate());
@@ -225,7 +216,7 @@ public class PurchaseBillController {
 
         // 3. Bind and apply new items
         for (PurchaseBillItem newItem : updatedBill.getItems()) {
-            newItem.setId(null); // Force fresh persist to avoid JPA detached entity exceptions
+            newItem.setId(null);
             newItem.setPurchaseBill(existingBill);
             existingBill.getItems().add(newItem);
 
@@ -252,23 +243,23 @@ public class PurchaseBillController {
                 ? (newItem.getQuantity() + newItem.getLoose()) * packSize 
                 : (newItem.getQuantity() + newItem.getLoose());
 
-            // Reconcile/increment active stock with new item quantities
             Optional<Medicine> stockOpt = medicineRepository.findFirstBySkuAndBatchNumberAndActiveTrue(
                     newItem.getProductCode(), newItem.getBatchNumber()
             );
 
+            double landedCostPricePerStrip = calculateLandedCostPricePerStrip(newItem);
 
             if (stockOpt.isPresent()) {
                 Medicine stock = stockOpt.get();
                 stock.setStockLevel(stock.getStockLevel() + totalUnits);
-                stock.setCostPrice(newItem.getRate());
+                stock.setCostPrice(landedCostPricePerStrip);
                 stock.setSellingPrice(newItem.getMrp());
                 stock.setExpiryDate(newItem.getExpiryDate());
                 stock.setBatchNumber(newItem.getBatchNumber());
                 stock.setHsnCode(newItem.getHsnCode());
                 stock.setGstRate(newItem.getCgstRate() + newItem.getSgstRate());
+                stock.setPurchaseDate(existingBill.getPurchaseDate() != null ? existingBill.getPurchaseDate().toLocalDate() : java.time.LocalDate.now());
                 if (newItem.getReorderLevel() != null) {
-                    // reorderLevel entered as strips → convert to tablets for storage
                     stock.setReorderLevel(isTabletOrCapsule
                         ? newItem.getReorderLevel() * packSize
                         : newItem.getReorderLevel());
@@ -278,7 +269,6 @@ public class PurchaseBillController {
                 }
                 medicineRepository.save(stock);
             } else {
-                // Register a new batch/medicine row inside active stock
                 Medicine newStock = Medicine.builder()
                         .name(newItem.getProductName())
                         .genericName(composition)
@@ -291,7 +281,7 @@ public class PurchaseBillController {
                                     ? newItem.getReorderLevel() * packSize
                                     : newItem.getReorderLevel())
                                 : (isTabletOrCapsule ? packSize * 10 : 10))
-                        .costPrice(newItem.getRate())
+                        .costPrice(landedCostPricePerStrip)
                         .sellingPrice(newItem.getMrp())
                         .manufacturer(manufacturer)
                         .rackLocation(newItem.getRackLocation() != null && !newItem.getRackLocation().trim().isEmpty() 
@@ -299,6 +289,7 @@ public class PurchaseBillController {
                                 : (category.equalsIgnoreCase("cosmetics") ? "Rack-B" : "Rack-A"))
                         .hsnCode(newItem.getHsnCode())
                         .gstRate(newItem.getCgstRate() + newItem.getSgstRate())
+                        .purchaseDate(existingBill.getPurchaseDate() != null ? existingBill.getPurchaseDate().toLocalDate() : java.time.LocalDate.now())
                         .active(true)
                         .build();
 
@@ -308,6 +299,76 @@ public class PurchaseBillController {
 
         PurchaseBill savedBill = purchaseBillRepository.save(existingBill);
         return ResponseEntity.ok(savedBill);
+    }
+
+    @DeleteMapping("/{id}")
+    @org.springframework.transaction.annotation.Transactional
+    public ResponseEntity<Void> deletePurchaseBill(@PathVariable Long id) {
+        Optional<PurchaseBill> billOpt = purchaseBillRepository.findById(id);
+        if (billOpt.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+
+        PurchaseBill bill = billOpt.get();
+
+        for (PurchaseBillItem oldItem : bill.getItems()) {
+            Optional<MedicineMaster> masterOpt = medicineMasterRepository.findFirstByProductCodeAndActiveTrue(
+                    oldItem.getProductCode()
+            );
+            int packSize = 10;
+            boolean isTabletOrCapsule = true;
+            if (masterOpt.isPresent()) {
+                MedicineMaster master = masterOpt.get();
+                String pType = master.getProductType() != null ? master.getProductType().toLowerCase() : "";
+                isTabletOrCapsule = pType.contains("tablet") || pType.contains("capsule");
+                packSize = isTabletOrCapsule ? parsePackSize(master.getProductQuantity()) : 1;
+            }
+            int totalUnits = isTabletOrCapsule 
+                ? (oldItem.getQuantity() + oldItem.getLoose()) * packSize 
+                : (oldItem.getQuantity() + oldItem.getLoose());
+
+            Optional<Medicine> stockOpt = medicineRepository.findFirstBySkuAndBatchNumberAndActiveTrue(
+                    oldItem.getProductCode(), oldItem.getBatchNumber()
+            );
+            if (stockOpt.isEmpty()) {
+                stockOpt = medicineRepository.findFirstBySkuAndActiveTrue(oldItem.getProductCode());
+            }
+
+            if (stockOpt.isPresent()) {
+                Medicine stock = stockOpt.get();
+                int newStockLevel = stock.getStockLevel() - totalUnits;
+                if (newStockLevel <= 0) {
+                    medicineRepository.delete(stock);
+                } else {
+                    stock.setStockLevel(newStockLevel);
+                    medicineRepository.save(stock);
+                }
+            }
+        }
+
+        bill.setActive(false);
+        purchaseBillRepository.save(bill);
+        return ResponseEntity.ok().build();
+    }
+
+    private double calculateLandedCostPricePerStrip(PurchaseBillItem item) {
+        double taxable = item.getTaxableAmount() != null ? item.getTaxableAmount() : 0.0;
+        double cgst = item.getCgstAmount() != null ? item.getCgstAmount() : 0.0;
+        double sgst = item.getSgstAmount() != null ? item.getSgstAmount() : 0.0;
+        double rowTotalCost = taxable + cgst + sgst;
+
+        double totalPacks = (item.getQuantity() != null ? item.getQuantity() : 0.0) 
+                          + (item.getLoose() != null ? item.getLoose() : 0.0);
+
+        if (totalPacks <= 0.0) {
+            double rate = item.getRate() != null ? item.getRate() : 0.0;
+            double discPct = item.getDiscountPercentage() != null ? item.getDiscountPercentage() : 0.0;
+            double cgstR = item.getCgstRate() != null ? item.getCgstRate() : 0.0;
+            double sgstR = item.getSgstRate() != null ? item.getSgstRate() : 0.0;
+            return rate * (1.0 - discPct / 100.0) * (1.0 + (cgstR + sgstR) / 100.0);
+        }
+
+        return rowTotalCost / totalPacks;
     }
 
     private int parsePackSize(String productQuantity) {

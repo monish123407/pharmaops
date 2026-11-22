@@ -19,17 +19,61 @@
     </div>
   }
 
+  <!-- ── Profit Summary Banner (Monthly) ─────────────────────── -->
+  <div class="profit-banner animate-fade-in">
+    <div class="profit-block">
+      <div class="profit-label">📈 Monthly Gross Profit</div>
+      <div class="profit-value profit-green">₹{{ stats()!.monthlyGrossProfit | number:'1.2-2' }}</div>
+    </div>
+    <div class="profit-divider">−</div>
+    <div class="profit-block">
+      <div class="profit-label">💸 Monthly Expenses</div>
+      <div class="profit-value profit-red">₹{{ stats()!.monthlyExpenses | number:'1.2-2' }}</div>
+    </div>
+    <div class="profit-divider">=</div>
+    <div class="profit-block profit-block-net" [class.profit-block-loss]="stats()!.monthlyNetProfit < 0">
+      <div class="profit-label">🏆 Monthly Net Profit</div>
+      <div class="profit-value" [class.profit-green]="stats()!.monthlyNetProfit >= 0" [class.profit-red]="stats()!.monthlyNetProfit < 0">
+        ₹{{ stats()!.monthlyNetProfit | number:'1.2-2' }}
+      </div>
+    </div>
+    <div class="profit-divider-v"></div>
+    <div class="profit-block">
+      <div class="profit-label">📅 Yearly Net Profit</div>
+      <div class="profit-value" [class.profit-green]="stats()!.yearlyNetProfit >= 0" [class.profit-red]="stats()!.yearlyNetProfit < 0">
+        ₹{{ stats()!.yearlyNetProfit | number:'1.2-2' }}
+      </div>
+    </div>
+  </div>
+
   <!-- Stats Indicators Grid -->
   <div class="stats-grid animate-fade-in">
-    <!-- Stat 1: Revenue -->
-    <div class="glass-panel stat-card" style="border-left: 4px solid var(--color-secondary);">
+    <!-- Today Gross Revenue -->
+    <div class="glass-panel stat-card" style="border-left: 4px solid #22c55e;">
       <div class="stat-icon">💰</div>
       <div class="stat-value">₹{{ stats()!.totalRevenueToday | number:'1.2-2' }}</div>
-      <div class="stat-label">Daily Revenue</div>
+      <div class="stat-label">Today's Revenue</div>
     </div>
 
-    <!-- Stat 2: Low Stock -->
-    <div class="glass-panel stat-card" [class.animate-pulse-danger]="stats()!.lowStockCount > 0" 
+    <!-- Today Expenses -->
+    <div class="glass-panel stat-card" style="border-left: 4px solid #f97316; cursor:pointer;" routerLink="/expenses">
+      <div class="stat-icon">💸</div>
+      <div class="stat-value">₹{{ stats()!.totalExpensesToday | number:'1.2-2' }}</div>
+      <div class="stat-label">Today's Expenses</div>
+    </div>
+
+    <!-- Today Net Profit -->
+    <div class="glass-panel stat-card"
+         [style.border-left]="stats()!.netProfitToday >= 0 ? '4px solid #14b8a6' : '4px solid #ef4444'">
+      <div class="stat-icon">{{ stats()!.netProfitToday >= 0 ? '🟢' : '🔴' }}</div>
+      <div class="stat-value" [style.color]="stats()!.netProfitToday >= 0 ? '#4ade80' : '#f87171'">
+        ₹{{ stats()!.netProfitToday | number:'1.2-2' }}
+      </div>
+      <div class="stat-label">Today's Net Profit</div>
+    </div>
+
+    <!-- Low Stock -->
+    <div class="glass-panel stat-card" [class.animate-pulse-danger]="stats()!.lowStockCount > 0"
          [style.border-left]="stats()!.lowStockCount > 0 ? '4px solid var(--color-danger)' : '4px solid var(--color-primary)'"
          style="cursor: pointer;" routerLink="/inventory" [queryParams]="{ filter: 'low-stock' }">
       <div class="stat-icon">⚠️</div>
@@ -37,7 +81,7 @@
       <div class="stat-label">Low Stock Alerts</div>
     </div>
 
-    <!-- Stat 3: Expired -->
+    <!-- Expired -->
     <div class="glass-panel stat-card" [class.animate-pulse-danger]="stats()!.expiredCount > 0"
          [style.border-left]="stats()!.expiredCount > 0 ? '4px solid var(--color-danger)' : '4px solid var(--color-primary)'"
          style="cursor: pointer;" routerLink="/inventory" [queryParams]="{ filter: 'expired' }">
@@ -46,13 +90,14 @@
       <div class="stat-label">Expired Products</div>
     </div>
 
-    <!-- Stat 4: Total Medicines -->
+    <!-- Total Medicines -->
     <div class="glass-panel stat-card" style="border-left: 4px solid var(--color-primary);">
       <div class="stat-icon">💊</div>
       <div class="stat-value">{{ stats()!.totalMedicines }}</div>
       <div class="stat-label">Active Formulations</div>
     </div>
   </div>
+
 
   <!-- Dashboard Split View -->
   <div class="dashboard-split animate-fade-in">

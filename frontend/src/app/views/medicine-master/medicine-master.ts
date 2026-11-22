@@ -1,21 +1,28 @@
 import { Component, signal, computed, inject, OnInit } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { MedicineMasterService } from '../../services/medicine-master.service';
 import { AuthService } from '../../services/auth.service';
 import { MedicineMaster } from '../../models/types';
+import { HsnManagementService, HsnCodeConfig } from '../../services/hsn-management.service';
+import { MatSnackBarModule, MatSnackBar } from '@angular/material/snack-bar';
 
 @Component({
   selector: 'app-medicine-master',
   standalone: true,
-  imports: [],
+  imports: [CommonModule, FormsModule, MatSnackBarModule], // We will check if CommonModule and FormsModule are here
   templateUrl: './medicine-master.html',
   styleUrl: './medicine-master.css'
 })
 export class MedicineMasterComponent implements OnInit {
   private readonly masterService = inject(MedicineMasterService);
+  private readonly hsnService = inject(HsnManagementService);
+  private readonly snackBar = inject(MatSnackBar);
   protected readonly auth = inject(AuthService);
 
   // States Signals
   masters = signal<MedicineMaster[]>([]);
+  hsnCodes = signal<HsnCodeConfig[]>([]);
   loading = signal<boolean>(true);
   searchTerm = signal<string>('');
   activeFilter = signal<'ALL' | 'food' | 'cosmetics' | 'medicine' | 'others'>('ALL');
@@ -63,6 +70,7 @@ export class MedicineMasterComponent implements OnInit {
 
   ngOnInit() {
     this.loadMasters();
+    this.loadHsnCodes();
   }
 
   loadMasters() {
@@ -76,6 +84,13 @@ export class MedicineMasterComponent implements OnInit {
     });
   }
 
+  loadHsnCodes() {
+    this.hsnService.getAll().subscribe({
+      next: (data) => this.hsnCodes.set(data),
+      error: (err) => console.error('Failed to load HSN codes', err)
+    });
+  }
+
   onSearchChange(value: string) {
     this.searchTerm.set(value);
   }
@@ -84,24 +99,18 @@ export class MedicineMasterComponent implements OnInit {
     this.activeFilter.set(filter);
   }
 
-  // Automatic HSN tax splits lookup rule based on the latest Indian Govt GST rates
+  // Automatic HSN tax splits lookup rule based on the HSN codes directory
   onHsnChange(hsn: string) {
     this.formHsnCode.set(hsn);
     const clean = hsn.trim();
-    if (clean === '3002' || clean === '9021') {
-      // 5% GST: Vaccines, Blood fractions, Cardiac Stents, Orthopaedic appliances
-      this.formCgst.set(2.5);
-      this.formSgst.set(2.5);
-    } else if (clean === '3304' || clean === '2106' || clean === '3808' || clean === '4015' || clean === '9025' || clean === '9027') {
-      // 18% GST: Cosmetics, Food/Protein Supplements, Hand Sanitizers, Surgical Gloves, BP Monitors/Thermometers
-      this.formCgst.set(9.0);
-      this.formSgst.set(9.0);
-    } else if (clean === '30066030') {
-      // 0% GST (Nil Rated): Oral contraceptives
-      this.formCgst.set(0.0);
-      this.formSgst.set(0.0);
+    
+    // Find matching HSN Code configuration from our central directory
+    const matchedHsn = this.hsnCodes().find(x => x.code === clean);
+    if (matchedHsn) {
+      this.formCgst.set(matchedHsn.cgst);
+      this.formSgst.set(matchedHsn.sgst);
     } else {
-      // 12% GST: Standard Formulations (3004), Medicaments mixed (3003), Bandages/Dressings (3005), Sterile sutures (3006), Surgical instruments (9018)
+      // Fallback defaults
       this.formCgst.set(6.0);
       this.formSgst.set(6.0);
     }
@@ -239,5 +248,55 @@ export class MedicineMasterComponent implements OnInit {
     if (idx > 0) {
       this.focusMasterInput(order[idx - 1]);
     }
+  }
+
+  // ── CSV Export & Import Handlers ──
+  exportToCsv() {
+    this.loading.set(true);
+    this.masterService.exportToCsv().subscribe({
+      next: (blob) => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `medicine_master_export_${new Date().toISOString().slice(0, 10)}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+        this.loading.set(false);
+        this.snackBar.open('📥 Catalogue exported successfully!', 'OK', { duration: 3000 });
+      },
+      error: (err) => {
+        this.loading.set(false);
+        console.error(err);
+        this.snackBar.open('❌ Export failed.', 'Close', { duration: 4000 });
+      }
+    });
+  }
+
+  triggerImport(event: Event) {
+    const input = event.target as HTMLInputElement;
+    if (!input.files || input.files.length === 0) return;
+
+    const file = input.files[0];
+    if (!file.name.toLowerCase().endsWith('.csv')) {
+      this.snackBar.open('⚠️ Please select a valid CSV (Excel) file.', 'Close', { duration: 3500 });
+      return;
+    }
+
+    this.loading.set(true);
+    this.masterService.importFromCsv(file).subscribe({
+      next: (res) => {
+        this.snackBar.open(`✅ Catalog imported: Added ${res.inserted} new, Updated ${res.updated} items!`, 'OK', { duration: 5000 });
+        this.loadMasters(); // Refresh table
+        input.value = ''; // Reset input
+      },
+      error: (err) => {
+        this.loading.set(false);
+        const errMsg = err?.error || 'Import failed. Check file format.';
+        this.snackBar.open(`❌ ${errMsg}`, 'Close', { duration: 5000 });
+        input.value = ''; // Reset input
+      }
+    });
   }
 }

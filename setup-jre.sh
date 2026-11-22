@@ -23,7 +23,7 @@ JRE_MAJOR_VERSION="17"
 JRE_FULL_VERSION="17.0.13+11"
 JRE_ARCHIVE_NAME="OpenJDK17U-jre_x64_windows_hotspot_17.0.13_11"
 JRE_URL="https://github.com/adoptium/temurin17-binaries/releases/download/jdk-${JRE_FULL_VERSION}/${JRE_ARCHIVE_NAME}.zip"
-JRE_DIR="./jre"
+JRE_DIR="./jre-win"
 
 echo -e "${TEAL}================================================================${NC}"
 echo -e "${TEAL}     ☕ Adoptium JRE ${JRE_MAJOR_VERSION} Download (Windows x64)       ${NC}"

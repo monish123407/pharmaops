@@ -13,6 +13,13 @@ import java.util.List;
 @Builder
 public class DashboardStats {
     private Double totalRevenueToday;
+    private Double grossProfitToday;       // Revenue today (sales revenue)
+    private Double totalExpensesToday;     // Shop expenses recorded today
+    private Double netProfitToday;         // grossProfit - expenses (today)
+    private Double monthlyGrossProfit;     // Revenue this month
+    private Double monthlyExpenses;        // Expenses this month
+    private Double monthlyNetProfit;       // monthlyGrossProfit - monthlyExpenses
+    private Double yearlyNetProfit;        // Net profit for current year
     private Long lowStockCount;
     private Long expiredCount;
     private Long expiringSoonCount;

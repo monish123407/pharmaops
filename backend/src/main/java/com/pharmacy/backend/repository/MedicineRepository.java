@@ -27,4 +27,5 @@ public interface MedicineRepository extends JpaRepository<Medicine, Long> {
 
     java.util.Optional<Medicine> findFirstBySkuAndActiveTrue(String sku);
     java.util.Optional<Medicine> findFirstBySkuAndBatchNumberAndActiveTrue(String sku, String batchNumber);
+    List<Medicine> findBySkuAndActiveTrue(String sku);
 }

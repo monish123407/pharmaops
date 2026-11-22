@@ -18,13 +18,16 @@ public class DataInitializer implements CommandLineRunner {
     @Autowired private PrescriptionRepository prescriptionRepository;
     @Autowired private SaleRepository saleRepository;
     @Autowired private CustomerRepository customerRepository;
+    @Autowired private com.pharmacy.backend.repository.HsnCodeRepository hsnCodeRepository;
 
     @Override
     public void run(String... args) throws Exception {
         System.out.println("====== PharmaOps Data Seeder Started ======");
 
         seedUsers();
-        seedMedicineMasters();
+        seedHsnCodes();
+        // seedMedicineMasters();
+        // seedMockMedicines();
 
         System.out.println("====== PharmaOps Seeder Complete ======");
     }
@@ -576,5 +579,125 @@ public class DataInitializer implements CommandLineRunner {
         ));
 
         System.out.println("Medicine Masters seeded: " + medicineMasterRepository.count() + " entries.");
+    }
+
+    private void seedMockMedicines() {
+        medicineRepository.deleteAll();
+
+        LocalDate today = LocalDate.now();
+
+        medicineRepository.saveAll(Arrays.asList(
+            Medicine.builder()
+                .name("Amoxicillin 500mg")
+                .genericName("Amoxicillin Trihydrate IP 500mg")
+                .sku("MED-AMOX-500")
+                .batchNumber("B-AMX-001")
+                .expiryDate(today.plusMonths(6))
+                .stockLevel(80)
+                .reorderLevel(30)
+                .costPrice(100.0)
+                .sellingPrice(150.0)
+                .manufacturer("Cipla Ltd")
+                .rackLocation("A-01")
+                .hsnCode("3004")
+                .gstRate(12.0)
+                .purchaseDate(today.minusDays(15))
+                .active(true)
+                .build(),
+
+            Medicine.builder()
+                .name("Paracetamol 500mg")
+                .genericName("Paracetamol IP 500mg")
+                .sku("MED-PARA-500")
+                .batchNumber("B-PAR-022")
+                .expiryDate(today.plusMonths(12))
+                .stockLevel(200)
+                .reorderLevel(50)
+                .costPrice(12.0)
+                .sellingPrice(20.0)
+                .manufacturer("GlaxoSmithKline")
+                .rackLocation("B-01")
+                .hsnCode("3004")
+                .gstRate(12.0)
+                .purchaseDate(today.minusDays(45))
+                .active(true)
+                .build(),
+
+            Medicine.builder()
+                .name("Atorvastatin 10mg")
+                .genericName("Atorvastatin Calcium IP 10mg")
+                .sku("MED-ATOR-10")
+                .batchNumber("B-ATR-909")
+                .expiryDate(today.plusDays(60))
+                .stockLevel(150)
+                .reorderLevel(40)
+                .costPrice(55.0)
+                .sellingPrice(80.0)
+                .manufacturer("Pfizer Ltd")
+                .rackLocation("C-01")
+                .hsnCode("3004")
+                .gstRate(12.0)
+                .purchaseDate(today.minusDays(120))
+                .active(true)
+                .build(),
+
+            Medicine.builder()
+                .name("Gabapentin 300mg")
+                .genericName("Gabapentin IP 300mg")
+                .sku("CNS-GABAP-300")
+                .batchNumber("B-GAB-512")
+                .expiryDate(today.minusDays(15))
+                .stockLevel(50)
+                .reorderLevel(20)
+                .costPrice(150.0)
+                .sellingPrice(220.0)
+                .manufacturer("Pfizer Ltd")
+                .rackLocation("J-01")
+                .hsnCode("3004")
+                .gstRate(12.0)
+                .purchaseDate(today.minusDays(200))
+                .active(true)
+                .build()
+        ));
+
+        System.out.println("Mock medicines seeded for Ageing Report.");
+    }
+
+    private void seedHsnCodes() {
+        if (hsnCodeRepository.count() > 0) return;
+
+        hsnCodeRepository.saveAll(Arrays.asList(
+            com.pharmacy.backend.model.HsnCode.builder()
+                .code("3004")
+                .cgst(6.0)
+                .sgst(6.0)
+                .description("Formulations / Packaged Medicines (12% GST)")
+                .build(),
+            com.pharmacy.backend.model.HsnCode.builder()
+                .code("3003")
+                .cgst(6.0)
+                .sgst(6.0)
+                .description("Unmixed Medicines for Therapeutic Uses (12% GST)")
+                .build(),
+            com.pharmacy.backend.model.HsnCode.builder()
+                .code("3006")
+                .cgst(9.0)
+                .sgst(9.0)
+                .description("Pharmaceutical Surgical Goods (18% GST)")
+                .build(),
+            com.pharmacy.backend.model.HsnCode.builder()
+                .code("2106")
+                .cgst(9.0)
+                .sgst(9.0)
+                .description("Nutritional Food Supplements & ORS (18% GST)")
+                .build(),
+            com.pharmacy.backend.model.HsnCode.builder()
+                .code("3002")
+                .cgst(2.5)
+                .sgst(2.5)
+                .description("Vaccines, Toxins & Blood Products (5% GST)")
+                .build()
+        ));
+        System.out.println("HSN Codes directory seeded with standard medical codes.");
     }
 }

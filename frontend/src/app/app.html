@@ -13,9 +13,17 @@
 
       <!-- Center Section: Horizontal Nav Menu Links -->
       <nav class="nav-menu">
-        <a class="nav-item" routerLink="/sales-billing" routerLinkActive="active">
-          <span>🧾  Billing</span>
-        </a>
+        <div class="nav-item-dropdown" 
+             [class.active]="isBillingActive()"
+             [class.show]="isBillingDropdownOpen()">
+          <button class="dropdown-trigger" (click)="toggleBillingDropdown($event)">
+            <span>🧾 Billing ▾</span>
+          </button>
+          <div class="dropdown-content" (click)="closeBillingDropdown()">
+            <a routerLink="/sales-billing" routerLinkActive="active-sub">1️⃣ New Billing Invoice</a>
+            <a routerLink="/sales-history" routerLinkActive="active-sub">2️⃣ Billing History</a>
+          </div>
+        </div>
         <div class="nav-item-dropdown" 
              [class.active]="isStockActive()"
              [class.show]="isStockDropdownOpen()">
@@ -26,6 +34,7 @@
             <a routerLink="/inventory" routerLinkActive="active-sub">1️⃣ Stock Inventory</a>
             <a routerLink="/expiry-disposal" routerLinkActive="active-sub">2️⃣ Expiry & Disposal</a>
             <a routerLink="/expired-stockout" routerLinkActive="active-sub">3️⃣ Expired Stockout</a>
+            <a routerLink="/stock-ageing" routerLinkActive="active-sub">4️⃣ Stock Ageing Analysis</a>
           </div>
         </div>
         <div class="nav-item-dropdown" 
@@ -54,6 +63,7 @@
             <a routerLink="/medicines" routerLinkActive="active-sub">💊 Medicine Master</a>
             <a routerLink="/suppliers" routerLinkActive="active-sub">🤝 Suppliers</a>
             <a routerLink="/customers" routerLinkActive="active-sub">👤 Customers</a>
+            <a routerLink="/hsn-management" routerLinkActive="active-sub">🏷️ HSN Code Management</a>
           </div>
         </div>
         
@@ -62,6 +72,9 @@
 
         <a class="nav-item" routerLink="/gst-filing" routerLinkActive="active">
           <span>🏛️ GST Returns</span>
+        </a>
+        <a class="nav-item" routerLink="/expenses" routerLinkActive="active">
+          <span>💰 Expenses</span>
         </a>
         <!-- Analytics Dropdown -->
         <div class="nav-item-dropdown"

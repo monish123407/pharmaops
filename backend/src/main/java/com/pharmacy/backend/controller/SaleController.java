@@ -12,13 +12,14 @@ import com.pharmacy.backend.repository.MedicineRepository;
 import com.pharmacy.backend.repository.PrescriptionRepository;
 import com.pharmacy.backend.repository.SaleRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
 @RestController
 @RequestMapping("/api/sales")
@@ -183,5 +184,49 @@ public class SaleController {
         // 4. Save and return Completed Sale Invoice
         Sale savedSale = saleRepository.save(sale);
         return ResponseEntity.ok(savedSale);
+    }
+
+    // ── Billing History endpoint ───────────────────────────────────────────
+    @GetMapping("/history")
+    public Map<String, Object> getHistory(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String paymentMethod) {
+
+        LocalDate from = startDate != null ? startDate : LocalDate.now().withDayOfMonth(1);
+        LocalDate to   = endDate   != null ? endDate   : LocalDate.now();
+
+        LocalDateTime start = from.atStartOfDay();
+        LocalDateTime end   = to.atTime(23, 59, 59);
+
+        String srch = (search != null && !search.isBlank()) ? search.trim() : null;
+        String pay  = (paymentMethod != null && !paymentMethod.isBlank()
+                       && !paymentMethod.equals("ALL")) ? paymentMethod : null;
+
+        List<Sale> sales = saleRepository.searchSales(srch, pay, start, end);
+
+        // Compute summary stats
+        double totalRevenue   = sales.stream().mapToDouble(Sale::getFinalAmount).sum();
+        double totalDiscount  = sales.stream().mapToDouble(Sale::getDiscountAmount).sum();
+        double totalTax       = sales.stream().mapToDouble(Sale::getTaxAmount).sum();
+        long   invoiceCount   = sales.size();
+
+        // Payment method breakdown
+        Map<String, Double> paymentBreakdown = new LinkedHashMap<>();
+        for (Sale s : sales) {
+            paymentBreakdown.merge(s.getPaymentMethod(), s.getFinalAmount(), Double::sum);
+        }
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("sales", sales);
+        result.put("totalRevenue",  totalRevenue);
+        result.put("totalDiscount", totalDiscount);
+        result.put("totalTax",      totalTax);
+        result.put("invoiceCount",  invoiceCount);
+        result.put("paymentBreakdown", paymentBreakdown);
+        result.put("startDate", from.toString());
+        result.put("endDate",   to.toString());
+        return result;
     }
 }

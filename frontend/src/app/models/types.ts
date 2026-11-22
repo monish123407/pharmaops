@@ -139,6 +139,13 @@ export interface ChartPoint {
 
 export interface DashboardStats {
   totalRevenueToday: number;
+  grossProfitToday: number;
+  totalExpensesToday: number;
+  netProfitToday: number;
+  monthlyGrossProfit: number;
+  monthlyExpenses: number;
+  monthlyNetProfit: number;
+  yearlyNetProfit: number;
   lowStockCount: number;
   expiredCount: number;
   expiringSoonCount: number;
@@ -201,4 +208,32 @@ export interface PurchaseBill {
   totalAmount: number;
   purchaseDate?: string;
   items: PurchaseBillItem[];
+}
+
+export interface Expense {
+  id?: number;
+  expenseDate: string;           // YYYY-MM-DD
+  category: string;
+  description: string;
+  amount: number;
+  paymentMethod: string;
+  referenceNumber?: string;
+  paidTo?: string;
+  notes?: string;
+  receiptNumber?: string;
+  active?: boolean;
+}
+
+export interface ExpenseCategoryTotal {
+  category: string;
+  total: number;
+}
+
+export interface ExpenseSummary {
+  totalForRange: number;
+  monthTotal: number;
+  yearTotal: number;
+  startDate: string;
+  endDate: string;
+  categoryBreakdown: ExpenseCategoryTotal[];
 }

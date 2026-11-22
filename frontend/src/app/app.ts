@@ -82,6 +82,7 @@ export class App implements OnInit, OnDestroy {
 
   toggleStockDropdown(event: Event) {
     event.stopPropagation();
+    this.isBillingDropdownOpen.set(false);
     this.isPurchaseDropdownOpen.set(false);
     this.isRegisterDropdownOpen.set(false);
     this.isAnalyticsDropdownOpen.set(false);
@@ -92,11 +93,27 @@ export class App implements OnInit, OnDestroy {
     this.isStockDropdownOpen.set(false);
   }
 
+  isBillingDropdownOpen = signal<boolean>(false);
+
+  toggleBillingDropdown(event: Event) {
+    event.stopPropagation();
+    this.isStockDropdownOpen.set(false);
+    this.isPurchaseDropdownOpen.set(false);
+    this.isRegisterDropdownOpen.set(false);
+    this.isAnalyticsDropdownOpen.set(false);
+    this.isBillingDropdownOpen.update(val => !val);
+  }
+
+  closeBillingDropdown() {
+    this.isBillingDropdownOpen.set(false);
+  }
+
   isPurchaseDropdownOpen = signal<boolean>(false);
 
   togglePurchaseDropdown(event: Event) {
     event.stopPropagation();
     this.isStockDropdownOpen.set(false);
+    this.isBillingDropdownOpen.set(false);
     this.isRegisterDropdownOpen.set(false);
     this.isAnalyticsDropdownOpen.set(false);
     this.isPurchaseDropdownOpen.update(val => !val);
@@ -111,6 +128,7 @@ export class App implements OnInit, OnDestroy {
   toggleRegisterDropdown(event: Event) {
     event.stopPropagation();
     this.isStockDropdownOpen.set(false);
+    this.isBillingDropdownOpen.set(false);
     this.isPurchaseDropdownOpen.set(false);
     this.isAnalyticsDropdownOpen.set(false);
     this.isRegisterDropdownOpen.update(val => !val);
@@ -125,6 +143,7 @@ export class App implements OnInit, OnDestroy {
   toggleAnalyticsDropdown(event: Event) {
     event.stopPropagation();
     this.isStockDropdownOpen.set(false);
+    this.isBillingDropdownOpen.set(false);
     this.isPurchaseDropdownOpen.set(false);
     this.isRegisterDropdownOpen.set(false);
     this.isAnalyticsDropdownOpen.update(val => !val);
@@ -143,14 +162,22 @@ export class App implements OnInit, OnDestroy {
     });
     if (!clickedInside) {
       this.closeStockDropdown();
+      this.closeBillingDropdown();
       this.closePurchaseDropdown();
       this.closeRegisterDropdown();
       this.closeAnalyticsDropdown();
     }
   }
 
+  isBillingActive(): boolean {
+    return this.router.url.includes('/sales-billing') || this.router.url.includes('/sales-history');
+  }
+
   isStockActive(): boolean {
-    return this.router.url.includes('/inventory') || this.router.url.includes('/expiry-disposal') || this.router.url.includes('/expired-stockout');
+    return this.router.url.includes('/inventory') || 
+           this.router.url.includes('/expiry-disposal') || 
+           this.router.url.includes('/expired-stockout') || 
+           this.router.url.includes('/stock-ageing');
   }
 
   isPurchaseActive(): boolean {
@@ -158,7 +185,7 @@ export class App implements OnInit, OnDestroy {
   }
 
   isRegisterActive(): boolean {
-    return this.router.url.includes('/medicines') || this.router.url.includes('/suppliers') || this.router.url.includes('/customers');
+    return this.router.url.includes('/medicines') || this.router.url.includes('/suppliers') || this.router.url.includes('/customers') || this.router.url.includes('/hsn-management');
   }
 
   isAnalyticsActive(): boolean {

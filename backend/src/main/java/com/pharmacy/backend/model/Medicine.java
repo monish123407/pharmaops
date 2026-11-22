@@ -57,6 +57,9 @@ public class Medicine {
     @Builder.Default
     private Boolean active = true;
 
+    @Builder.Default
+    private LocalDate purchaseDate = LocalDate.now();
+
     public boolean isActive() {
         return active != null && active;
     }
@@ -65,6 +68,9 @@ public class Medicine {
     protected void onCreate() {
         if (active == null) {
             active = true;
+        }
+        if (purchaseDate == null) {
+            purchaseDate = LocalDate.now();
         }
     }
 }

@@ -14,4 +14,5 @@ public interface MedicineMasterRepository extends JpaRepository<MedicineMaster, 
     );
 
     java.util.Optional<MedicineMaster> findFirstByProductCodeAndActiveTrue(String productCode);
+    List<MedicineMaster> findByHsnCodeAndActiveTrue(String hsnCode);
 }

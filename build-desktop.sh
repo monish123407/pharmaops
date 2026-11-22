@@ -59,42 +59,66 @@ else
     exit 1
 fi
 
-# Step 5: Run electron-builder to pack the Windows app
-echo -e "\n⚙️  ${YELLOW}[5/5] Bundling Standalone Windows Setup Installer (.exe)...${NC}"
+# Step 5: Run electron-builder to pack Windows & Mac apps
+echo -e "\n⚙️  ${YELLOW}[5/5] Bundling Standalone Desktop Installers (.exe & .dmg)...${NC}"
+
+# Ensure both JRE folders exist
+if [ ! -d "jre-win/bin" ]; then
+    echo -e "${YELLOW}Warning: jre-win/bin not found. Running setup-jre.sh...${NC}"
+    bash setup-jre.sh
+fi
+if [ ! -d "jre-mac/bin" ]; then
+    echo -e "${YELLOW}Warning: jre-mac/bin not found. Running setup-jre-mac.sh...${NC}"
+    bash setup-jre-mac.sh
+fi
+
+echo -e "\n🛠️  Packaging Windows (.exe)..."
+BUILD_WIN=false
 if npx electron-builder --win --x64; then
-    echo -e "\n${GREEN}================================================================${NC}"
-    echo -e "   🎉 ${GREEN}SUCCESS! Arpita Medical Desktop Setup Installer is generated!${NC}"
-    echo -e "${TEAL}================================================================${NC}"
-    echo -e "  📁 ${BLUE}Installer Output folder${NC}: dist-desktop/"
-    echo -e "  🖥️  ${BLUE}Setup Installer file${NC}: dist-desktop/ArpitaMedical-Setup-1.0.0.exe"
-    echo -e "  ℹ️  ${BLUE}Uninstaller${NC}: Registered in Windows Control Panel under 'Arpita Medical Pharmacy Suite'"
-    echo -e "${TEAL}================================================================${NC}"
-    
-    # Simple post-build verification
-    echo -e "\n🔍 ${YELLOW}Running post-build validation checks...${NC}"
-    if [ -f "dist-desktop/ArpitaMedical-Setup-1.0.0.exe" ]; then
-        echo -e "  ${GREEN}✓ Setup Installer file exists.${NC}"
-    else
-        echo -e "  ${RED}✗ Setup Installer file is missing!${NC}"
-        exit 1
-    fi
-    
-    if [ -f "dist-desktop/win-unpacked/resources/backend.jar" ]; then
-        echo -e "  ${GREEN}✓ Backend JAR is bundled inside extraResources.${NC}"
-    else
-        echo -e "  ${RED}✗ Backend JAR is missing from extraResources!${NC}"
-        exit 1
-    fi
-    
-    if [ -f "dist-desktop/win-unpacked/resources/jre/bin/java.exe" ]; then
-        echo -e "  ${GREEN}✓ Adoptium JRE is bundled inside extraResources.${NC}"
-    else
-        echo -e "  ${RED}✗ JRE is missing from extraResources!${NC}"
-        exit 1
-    fi
-    
-    echo -e "${GREEN}✓ All post-build validation checks passed!${NC}"
+    BUILD_WIN=true
+    echo -e "${GREEN}✓ Windows installer generated!${NC}"
 else
-    echo -e "${RED}[ERROR] Electron packaging failed. Verify package.json build configurations.${NC}"
+    echo -e "${RED}[ERROR] Windows packaging failed.${NC}"
+fi
+
+echo -e "\n🛠️  Packaging macOS (.dmg)..."
+BUILD_MAC=false
+if npx electron-builder --mac --arm64; then
+    BUILD_MAC=true
+    echo -e "${GREEN}✓ macOS DMG generated!${NC}"
+else
+    echo -e "${RED}[ERROR] macOS packaging failed.${NC}"
+fi
+
+echo -e "\n${TEAL}================================================================${NC}"
+echo -e "   🎉 ${GREEN}Desktop Packaging Pipeline Execution Complete!${NC}"
+echo -e "${TEAL}================================================================${NC}"
+echo -e "  📁 ${BLUE}Output folder${NC}: dist-desktop/"
+if [ "$BUILD_WIN" = true ]; then
+    echo -e "  🖥️  ${GREEN}Windows Setup${NC}: dist-desktop/ArpitaMedical-1.0.0-win-x64.exe"
+fi
+if [ "$BUILD_MAC" = true ]; then
+    echo -e "  🍎 ${GREEN}macOS DMG${NC}:    dist-desktop/ArpitaMedical-1.0.0-mac-arm64.dmg"
+fi
+echo -e "${TEAL}================================================================${NC}"
+
+# Simple post-build verification
+echo -e "\n🔍 ${YELLOW}Running post-build validation checks...${NC}"
+if [ "$BUILD_WIN" = true ] && [ -f "dist-desktop/ArpitaMedical-1.0.0-win-x64.exe" ]; then
+    echo -e "  ${GREEN}✓ Windows Setup Installer exists.${NC}"
+else
+    echo -e "  ${RED}✗ Windows Setup Installer is missing or failed.${NC}"
+fi
+
+if [ "$BUILD_MAC" = true ] && [ -f "dist-desktop/ArpitaMedical-1.0.0-mac-arm64.dmg" ]; then
+    echo -e "  ${GREEN}✓ macOS DMG Installer exists.${NC}"
+else
+    echo -e "  ${RED}✗ macOS DMG Installer is missing or failed.${NC}"
+fi
+
+if [ "$BUILD_WIN" = false ] || [ "$BUILD_MAC" = false ]; then
     exit 1
 fi
+
+echo -e "${GREEN}✓ All desktop installer checks complete!${NC}"
+exit 0

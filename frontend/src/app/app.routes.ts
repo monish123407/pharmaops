@@ -33,6 +33,11 @@ export const routes: Routes = [
     loadComponent: () => import('./views/sales-billing/sales-billing').then(m => m.SalesBillingComponent),
     canActivate: [authGuard] 
   },
+  {
+    path: 'sales-history',
+    loadComponent: () => import('./views/billing-history/billing-history').then(m => m.BillingHistoryComponent),
+    canActivate: [authGuard]
+  },
   { 
     path: 'prescriptions', 
     loadComponent: () => import('./views/prescriptions/prescriptions').then(m => m.PrescriptionsComponent),
@@ -108,7 +113,22 @@ export const routes: Routes = [
     loadComponent: () => import('./views/customer-analytics/customer-analytics').then(m => m.CustomerAnalyticsComponent),
     canActivate: [authGuard] 
   },
+  {
+    path: 'stock-ageing',
+    loadComponent: () => import('./views/stock-ageing/stock-ageing').then(m => m.StockAgeingComponent),
+    canActivate: [authGuard]
+  },
+  {
+    path: 'hsn-management',
+    loadComponent: () => import('./views/hsn-management/hsn-management').then(m => m.HsnManagementComponent),
+    canActivate: [authGuard]
+  },
   { path: 'purchase-bills', redirectTo: 'purchase/entry', pathMatch: 'full' },
+  {
+    path: 'expenses',
+    loadComponent: () => import('./views/expenses/expenses').then(m => m.ExpensesComponent),
+    canActivate: [authGuard]
+  },
   { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
   { path: '**', redirectTo: 'dashboard' }
 ];

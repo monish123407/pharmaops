@@ -409,7 +409,7 @@
             <th>Discounts (₹)</th>
             <th>GST Splits (₹)</th>
             <th>Record Date</th>
-            <th style="width: 85px; text-align: center;">Actions</th>
+            <th style="width: 140px; text-align: center;">Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -423,9 +423,12 @@
             <td style="color: var(--color-danger);">-₹{{ bill.discountAmount | number:'1.2-2' }}</td>
             <td>CGST: ₹{{ bill.cgstAmount | number:'1.2-2' }} | SGST: ₹{{ bill.sgstAmount | number:'1.2-2' }}</td>
             <td>{{ bill.purchaseDate | date:'medium' }}</td>
-            <td style="text-align: center;">
+            <td style="text-align: center; display: flex; gap: 6px; justify-content: center; align-items: center;">
               <button type="button" class="btn btn-secondary" style="font-size: 0.72rem; padding: 4px 8px; background: rgba(20,184,166,0.1); border: 1px solid rgba(20,184,166,0.2); color: var(--color-primary);" (click)="onEditBill(bill)">
                 ✏️ Edit
+              </button>
+              <button type="button" class="btn btn-danger" style="font-size: 0.72rem; padding: 4px 8px; background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.2); color: #f87171; cursor: pointer;" (click)="deleteBill(bill)">
+                🗑️ Delete
               </button>
             </td>
           </tr>

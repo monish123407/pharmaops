@@ -1,0 +1,339 @@
+<!-- ══════════════════════════════════════════════════════════════
+     EXPENSES – Page Shell
+     ══════════════════════════════════════════════════════════════ -->
+<div class="page-shell">
+
+  <!-- ── Page Header ───────────────────────────────────────────── -->
+  <div class="page-header">
+    <div class="page-title-block">
+      <div class="page-icon">💰</div>
+      <div>
+        <h1 class="page-title">Shop Expenses</h1>
+        <p class="page-subtitle">Track all operational costs &amp; overheads</p>
+      </div>
+    </div>
+    <button class="btn btn-primary" id="exp-add-btn" (click)="openAdd()">
+      ➕ Record Expense
+    </button>
+  </div>
+
+  <!-- ── Quick Summary Cards ───────────────────────────────────── -->
+  @if (summary()) {
+  <div class="summary-cards">
+    <div class="stat-card accent-red">
+      <div class="stat-icon">📅</div>
+      <div class="stat-info">
+        <div class="stat-label">This Month</div>
+        <div class="stat-value">{{ formatCurrency(summary()!.monthTotal) }}</div>
+      </div>
+    </div>
+    <div class="stat-card accent-orange">
+      <div class="stat-icon">📆</div>
+      <div class="stat-info">
+        <div class="stat-label">This Year</div>
+        <div class="stat-value">{{ formatCurrency(summary()!.yearTotal) }}</div>
+      </div>
+    </div>
+    <div class="stat-card accent-blue">
+      <div class="stat-icon">🔍</div>
+      <div class="stat-info">
+        <div class="stat-label">Selected Range</div>
+        <div class="stat-value">{{ formatCurrency(summary()!.totalForRange) }}</div>
+      </div>
+    </div>
+    <div class="stat-card accent-teal">
+      <div class="stat-icon">📊</div>
+      <div class="stat-info">
+        <div class="stat-label">Showing</div>
+        <div class="stat-value">{{ formatCurrency(totalFiltered()) }}</div>
+      </div>
+    </div>
+  </div>
+  }
+
+
+  <!-- ── Tabs ───────────────────────────────────────────────────── -->
+  <div class="tab-bar">
+    <button class="tab-btn" [class.active]="activeTab() === 'list'"
+            (click)="activeTab.set('list')">📋 Expense List</button>
+    <button class="tab-btn" [class.active]="activeTab() === 'summary'"
+            (click)="activeTab.set('summary')">📊 Category Summary</button>
+  </div>
+
+  <!-- ── Filter Bar ─────────────────────────────────────────────── -->
+  <div class="filter-bar">
+    <div class="filter-group">
+      <label class="filter-label">From</label>
+      <input type="date" class="form-input" id="filter-start"
+             [value]="filterStart()" (change)="filterStart.set($any($event.target).value)" />
+    </div>
+    <div class="filter-group">
+      <label class="filter-label">To</label>
+      <input type="date" class="form-input" id="filter-end"
+             [value]="filterEnd()" (change)="filterEnd.set($any($event.target).value)" />
+    </div>
+    <div class="filter-group">
+      <label class="filter-label">Category</label>
+      <select class="form-input form-select" id="filter-cat"
+              [value]="filterCategory()" (change)="filterCategory.set($any($event.target).value)">
+        <option value="ALL">All Categories</option>
+        @for (cat of categories; track cat) {
+          <option [value]="cat">{{ categoryIcon(cat) }} {{ cat }}</option>
+        }
+      </select>
+    </div>
+    <div class="filter-group search-group">
+      <label class="filter-label">Search</label>
+      <input type="text" class="form-input" placeholder="Description, Paid to…"
+             [value]="searchQuery()" (input)="searchQuery.set($any($event.target).value)" />
+    </div>
+    <div class="filter-actions">
+      <button class="btn btn-primary btn-sm" (click)="applyFilters()">🔍 Apply</button>
+      <button class="btn btn-ghost btn-sm"   (click)="resetFilters()">↺ Reset</button>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════
+       TAB 1 – EXPENSE LIST
+       ════════════════════════════════════════════════════════════ -->
+  @if (activeTab() === 'list') {
+    @if (loading()) {
+      <div class="loading-state">
+        <div class="spinner"></div>
+        <p>Loading expenses…</p>
+      </div>
+    } @else if (filteredExpenses().length === 0) {
+      <div class="empty-state">
+        <div class="empty-icon">💸</div>
+        <h3>No expenses found</h3>
+        <p>Adjust your filters or click <strong>Record Expense</strong> to add one.</p>
+      </div>
+    } @else {
+      <div class="table-wrapper">
+        <table class="exp-table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Category</th>
+              <th>Description</th>
+              <th>Paid To</th>
+              <th>Payment</th>
+              <th>Ref / Receipt</th>
+              <th class="text-right">Amount</th>
+              <th class="text-center">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (exp of filteredExpenses(); track exp.id) {
+              <tr class="exp-row">
+                <td class="date-cell">{{ formatDate(exp.expenseDate) }}</td>
+                <td>
+                  <span class="category-badge">
+                    {{ categoryIcon(exp.category) }} {{ exp.category }}
+                  </span>
+                </td>
+                <td class="desc-cell">
+                  {{ exp.description }}
+                  @if (exp.notes) {
+                    <div class="exp-notes">📝 {{ exp.notes }}</div>
+                  }
+                </td>
+                <td class="paid-to-cell">{{ exp.paidTo || '—' }}</td>
+                <td>
+                  <span class="payment-badge">
+                    {{ paymentIcon(exp.paymentMethod) }} {{ exp.paymentMethod }}
+                  </span>
+                </td>
+                <td class="ref-cell">
+                  @if (exp.referenceNumber) {
+                    <span class="ref-text">Ref: {{ exp.referenceNumber }}</span>
+                  }
+                  @if (exp.receiptNumber) {
+                    <span class="ref-text">Rec: {{ exp.receiptNumber }}</span>
+                  }
+                  @if (!exp.referenceNumber && !exp.receiptNumber) { — }
+                </td>
+                <td class="amount-cell text-right">{{ formatCurrency(exp.amount) }}</td>
+                <td class="actions-cell text-center">
+                  <button class="btn-icon" title="Edit" (click)="openEdit(exp)">✏️</button>
+                  <button class="btn-icon btn-icon-danger" title="Delete"
+                          (click)="confirmDelete(exp.id!)">🗑️</button>
+                </td>
+              </tr>
+              <!-- Inline delete confirm -->
+              @if (showDeleteConfirm() === exp.id) {
+                <tr class="delete-confirm-row">
+                  <td colspan="8">
+                    <div class="delete-confirm-box">
+                      <span>⚠️ Delete <strong>{{ exp.description }}</strong> ({{ formatCurrency(exp.amount) }}) ?</span>
+                      <button class="btn btn-danger btn-sm" (click)="doDelete(exp.id!)">Yes, Delete</button>
+                      <button class="btn btn-ghost btn-sm"  (click)="cancelDelete()">Cancel</button>
+                    </div>
+                  </td>
+                </tr>
+              }
+            }
+          </tbody>
+          <tfoot>
+            <tr class="total-row">
+              <td colspan="6" class="text-right total-label">Total (shown):</td>
+              <td class="text-right total-value">{{ formatCurrency(totalFiltered()) }}</td>
+              <td></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    }
+  }
+
+  <!-- ════════════════════════════════════════════════════════════
+       TAB 2 – CATEGORY SUMMARY
+       ════════════════════════════════════════════════════════════ -->
+  @if (activeTab() === 'summary') {
+    @if (!summary() || summary()!.categoryBreakdown.length === 0) {
+      <div class="empty-state">
+        <div class="empty-icon">📊</div>
+        <h3>No data for selected range</h3>
+        <p>Record expenses or adjust the date filter.</p>
+      </div>
+    } @else {
+      <div class="summary-grid">
+        @for (item of summary()!.categoryBreakdown; track item.category) {
+          <div class="summary-card">
+            <div class="summary-card-header">
+              <span class="summary-icon">{{ categoryIcon(item.category) }}</span>
+              <span class="summary-cat-name">{{ item.category }}</span>
+              <span class="summary-amount">{{ formatCurrency(item.total) }}</span>
+            </div>
+            <div class="progress-track">
+              <div class="progress-fill"
+                   [style.width.%]="getCategoryPercentage(item.total)"></div>
+            </div>
+            <div class="summary-pct">{{ getCategoryPercentage(item.total).toFixed(1) }}% of total</div>
+          </div>
+        }
+      </div>
+    }
+  }
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     ADD / EDIT MODAL
+     ══════════════════════════════════════════════════════════════ -->
+@if (isModalOpen()) {
+  <div class="modal-backdrop" (click)="closeModal()">
+    <div class="modal-card" (click)="$event.stopPropagation()">
+
+      <div class="modal-header">
+        <h2 class="modal-title">
+          {{ editingId() ? '✏️ Edit Expense' : '➕ Record Expense' }}
+        </h2>
+        <button class="btn-close" (click)="closeModal()">✕</button>
+      </div>
+
+      <form (submit)="onSave($event)" class="modal-form">
+        <!-- Row 1: Date · Category -->
+        <div class="modal-grid-2">
+          <div class="form-group">
+            <label class="form-label">Date <span class="required">*</span></label>
+            <input type="date" class="form-input" id="exp-date"
+                   [value]="formDate()"
+                   (change)="formDate.set($any($event.target).value)"
+                   (keydown.enter)="onFieldEnter($event,'exp-date','exp-category')" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Category <span class="required">*</span></label>
+            <select class="form-input form-select" id="exp-category"
+                    [value]="formCategory()"
+                    (change)="formCategory.set($any($event.target).value)"
+                    (keydown.enter)="onFieldEnter($event,'exp-category','exp-description')">
+              @for (cat of categories; track cat) {
+                <option [value]="cat">{{ categoryIcon(cat) }} {{ cat }}</option>
+              }
+            </select>
+          </div>
+        </div>
+
+        <!-- Row 2: Description -->
+        <div class="form-group">
+          <label class="form-label">Description <span class="required">*</span></label>
+          <input type="text" class="form-input" id="exp-description"
+                 placeholder="e.g. Monthly shop rent for July 2026"
+                 [value]="formDescription()"
+                 (input)="formDescription.set($any($event.target).value)"
+                 (keydown.enter)="onFieldEnter($event,'exp-description','exp-amount')" />
+        </div>
+
+        <!-- Row 3: Amount · Payment Method -->
+        <div class="modal-grid-2">
+          <div class="form-group">
+            <label class="form-label">Amount (₹) <span class="required">*</span></label>
+            <input type="number" class="form-input" id="exp-amount"
+                   placeholder="0.00" min="0" step="0.01"
+                   [value]="formAmount()"
+                   (input)="formAmount.set($any($event.target).value)"
+                   (keydown.enter)="onFieldEnter($event,'exp-amount','exp-payment')" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Payment Method</label>
+            <select class="form-input form-select" id="exp-payment"
+                    [value]="formPaymentMethod()"
+                    (change)="formPaymentMethod.set($any($event.target).value)"
+                    (keydown.enter)="onFieldEnter($event,'exp-payment','exp-paidto')">
+              @for (m of paymentMethods; track m) {
+                <option [value]="m">{{ paymentIcon(m) }} {{ m }}</option>
+              }
+            </select>
+          </div>
+        </div>
+
+        <!-- Row 4: Paid To · Reference Number -->
+        <div class="modal-grid-2">
+          <div class="form-group">
+            <label class="form-label">Paid To</label>
+            <input type="text" class="form-input" id="exp-paidto"
+                   placeholder="Landlord, Vendor name…"
+                   [value]="formPaidTo()"
+                   (input)="formPaidTo.set($any($event.target).value)"
+                   (keydown.enter)="onFieldEnter($event,'exp-paidto','exp-ref')" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Reference / Txn No.</label>
+            <input type="text" class="form-input" id="exp-ref"
+                   placeholder="UPI Ref / Cheque No."
+                   [value]="formRefNumber()"
+                   (input)="formRefNumber.set($any($event.target).value)"
+                   (keydown.enter)="onFieldEnter($event,'exp-ref','exp-receipt')" />
+          </div>
+        </div>
+
+        <!-- Row 5: Receipt No · Notes -->
+        <div class="modal-grid-2">
+          <div class="form-group">
+            <label class="form-label">Receipt / Bill No.</label>
+            <input type="text" class="form-input" id="exp-receipt"
+                   placeholder="Optional receipt number"
+                   [value]="formReceiptNumber()"
+                   (input)="formReceiptNumber.set($any($event.target).value)"
+                   (keydown.enter)="onFieldEnter($event,'exp-receipt','exp-notes')" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Notes</label>
+            <input type="text" class="form-input" id="exp-notes"
+                   placeholder="Additional remarks"
+                   [value]="formNotes()"
+                   (input)="formNotes.set($any($event.target).value)"
+                   (keydown.enter)="onFieldEnter($event,'exp-notes','__save__')" />
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-ghost" (click)="closeModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="exp-save-btn">
+            {{ editingId() ? '💾 Update' : '✅ Save Expense' }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+}

@@ -7,8 +7,9 @@
     "start": "electron .",
     "build:angular": "cd frontend && npx ng build --configuration=production",
     "build:backend": "cd backend && ./mvnw clean package -DskipTests",
-    "electron:build": "electron-builder --win --x64",
-    "create-installer": "npm run build:backend && npm run build:angular && npm run electron:build",
+    "electron:build:win": "electron-builder --win --x64",
+    "electron:build:mac": "electron-builder --mac --arm64",
+    "create-installer": "npm run build:backend && npm run build:angular && npm run electron:build:win && npm run electron:build:mac",
     "desktop:build": "electron-builder --win"
   },
   "author": "Arpita Medical",
@@ -25,7 +26,6 @@
     "productName": "Arpita Medical",
     "copyright": "Copyright © 2026 Arpita Medical",
     "compression": "normal",
-    "artifactName": "ArpitaMedical-Setup-${version}.${ext}",
     "directories": {
       "output": "dist-desktop"
     },
@@ -38,23 +38,45 @@
       {
         "from": "backend/target/backend-0.0.1-SNAPSHOT.jar",
         "to": "backend.jar"
-      },
-      {
-        "from": "jre",
-        "to": "jre",
-        "filter": ["**/*"]
       }
     ],
     "win": {
       "icon": "build/icon.ico",
       "signAndEditExecutable": false,
       "publisherName": "Arpita Medical",
+      "artifactName": "ArpitaMedical-${version}-win-x64.${ext}",
       "target": [
         {
           "target": "nsis",
           "arch": [
             "x64"
           ]
+        }
+      ],
+      "extraResources": [
+        {
+          "from": "jre-win",
+          "to": "jre",
+          "filter": ["**/*"]
+        }
+      ]
+    },
+    "mac": {
+      "category": "public.app-category.business",
+      "artifactName": "ArpitaMedical-${version}-mac-arm64.${ext}",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64"
+          ]
+        }
+      ],
+      "extraResources": [
+        {
+          "from": "jre-mac",
+          "to": "jre",
+          "filter": ["**/*"]
         }
       ]
     },

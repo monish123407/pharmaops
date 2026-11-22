@@ -32,4 +32,8 @@ export class PurchaseBillService {
   update(id: number, bill: PurchaseBill): Observable<PurchaseBill> {
     return this.http.put<PurchaseBill>(`${this.apiUrl}/${id}`, bill);
   }
+
+  delete(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.apiUrl}/${id}`);
+  }
 }

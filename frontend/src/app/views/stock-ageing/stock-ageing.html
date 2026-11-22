@@ -1,0 +1,395 @@
+<div class="view-container animate-fade-in">
+  
+  <!-- Header Title -->
+  <div class="view-header">
+    <div class="header-left">
+      <h1>📦 Inventory Stock Ageing Analysis</h1>
+      <p class="header-subtitle">Analyze shelf age and remaining shelf life of current active stock batches</p>
+    </div>
+    <div class="header-right">
+      <button class="btn btn-config" [class.active]="showConfig()" (click)="showConfig.set(!showConfig())">
+        ⚙️ Configure Brackets
+      </button>
+      <button class="btn btn-secondary" (click)="loadReport()" [disabled]="loading()">
+        {{ loading() ? '⌛ Refreshing...' : '🔄 Refresh Data' }}
+      </button>
+    </div>
+  </div>
+
+  <!-- ⚙️ Ageing Bracket Configuration Panel -->
+  @if (showConfig()) {
+    <div class="config-panel glass-card animate-fade-in">
+      <div class="config-panel-header">
+        <h3>⚙️ Configure Shelf Age Distribution Brackets</h3>
+        <p class="config-subtitle">Set the day thresholds that define each ageing category. Must satisfy: Fresh &lt; Moderate &lt; Slow-Moving.</p>
+      </div>
+      <div class="config-inputs-row">
+        <div class="config-input-group">
+          <label class="config-label">
+            <span class="config-dot fresh-dot"></span>
+            🌿 Fresh Stock — max days
+          </label>
+          <div class="config-input-wrapper">
+            <input
+              type="number"
+              class="config-input"
+              [ngModel]="draftFreshLimit()"
+              (ngModelChange)="draftFreshLimit.set($event)"
+              min="1"
+              max="365"
+              placeholder="30"
+            />
+            <span class="config-unit">days</span>
+          </div>
+          <p class="config-hint">Stock aged 0 – {{ draftFreshLimit() }} days</p>
+        </div>
+
+        <div class="config-divider">
+          <span>→</span>
+        </div>
+
+        <div class="config-input-group">
+          <label class="config-label">
+            <span class="config-dot moderate-dot"></span>
+            🟡 Moderate — max days
+          </label>
+          <div class="config-input-wrapper">
+            <input
+              type="number"
+              class="config-input"
+              [ngModel]="draftModerateLimit()"
+              (ngModelChange)="draftModerateLimit.set($event)"
+              min="1"
+              max="365"
+              placeholder="90"
+            />
+            <span class="config-unit">days</span>
+          </div>
+          <p class="config-hint">Stock aged {{ draftFreshLimit() + 1 }} – {{ draftModerateLimit() }} days</p>
+        </div>
+
+        <div class="config-divider">
+          <span>→</span>
+        </div>
+
+        <div class="config-input-group">
+          <label class="config-label">
+            <span class="config-dot slow-dot"></span>
+            🔴 Slow-Moving — max days
+          </label>
+          <div class="config-input-wrapper">
+            <input
+              type="number"
+              class="config-input"
+              [ngModel]="draftSlowMovingLimit()"
+              (ngModelChange)="draftSlowMovingLimit.set($event)"
+              min="1"
+              max="730"
+              placeholder="180"
+            />
+            <span class="config-unit">days</span>
+          </div>
+          <p class="config-hint">Stock aged {{ draftModerateLimit() + 1 }} – {{ draftSlowMovingLimit() }} days. Beyond = Stagnant.</p>
+        </div>
+      </div>
+
+      <div class="config-actions">
+        <button class="btn btn-secondary" (click)="showConfig.set(false)">Cancel</button>
+        <button class="btn btn-outline-danger" (click)="resetConfig()">🔄 Reset to Defaults</button>
+        <button class="btn btn-primary" (click)="applyConfig()">✅ Apply Configuration</button>
+      </div>
+
+      <!-- Live preview of current applied brackets -->
+      <div class="config-current-badge-row">
+        <span class="config-badge-label">Currently applied:</span>
+        <span class="badge badge-fresh">🌿 Fresh ≤ {{ freshLimit() }}d</span>
+        <span class="badge badge-moderate">🟡 Moderate ≤ {{ moderateLimit() }}d</span>
+        <span class="badge badge-slow">🔴 Slow-Moving ≤ {{ slowMovingLimit() }}d</span>
+        <span class="badge badge-stagnant">⚫ Stagnant &gt; {{ slowMovingLimit() }}d</span>
+      </div>
+    </div>
+  }
+
+  @if (loading() && !report()) {
+    <div class="loading-state">
+      <div class="spinner"></div>
+      <p>Analyzing stock records and computing ageing brackets...</p>
+    </div>
+  } @else if (report()) {
+
+    <!-- KPI Row -->
+    <div class="kpi-grid">
+      
+      <div class="kpi-card glass-card">
+        <div class="kpi-icon">💰</div>
+        <div class="kpi-content">
+          <div class="kpi-label">Total Inventory Value</div>
+          <div class="kpi-value">₹{{ report().totalInventoryValue | number:'1.2-2' }}</div>
+          <div class="kpi-sub">cost value of active stock</div>
+        </div>
+      </div>
+
+      <div class="kpi-card glass-card warning">
+        <div class="kpi-icon">⚠️</div>
+        <div class="kpi-content">
+          <div class="kpi-label">Stagnant Capital (&gt;{{ moderateLimit() }} Days)</div>
+          <div class="kpi-value">₹{{ report().stagnantAlerts.length > 0 ? (report().stagnantAlerts.reduce(this.sumValue, 0) | number:'1.2-2') : '0.00' }}</div>
+          <div class="kpi-sub">{{ report().stagnantAlerts.length }} batch(es) slow-moving</div>
+        </div>
+      </div>
+
+      <div class="kpi-card glass-card danger">
+        <div class="kpi-icon">🚨</div>
+        <div class="kpi-content">
+          <div class="kpi-label">Critical Expiry Risk (<90 Days)</div>
+          <div class="kpi-value">₹{{ report().allBatches.filter(this.isCriticalOrExpired).reduce(this.sumValue, 0) | number:'1.2-2' }}</div>
+          <div class="kpi-sub">{{ report().allBatches.filter(this.isCriticalOrExpired).length }} batch(es) at risk / expired</div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Navigation Tabs -->
+    <div class="tab-container glass-card">
+      <button class="tab-btn" [class.active]="activeTab() === 'summary'" (click)="activeTab.set('summary')">
+        📊 Overview Distribution
+      </button>
+      <button class="tab-btn" [class.active]="activeTab() === 'batches'" (click)="activeTab.set('batches')">
+        📋 Detailed Batch Ledger
+      </button>
+      <button class="tab-btn" [class.active]="activeTab() === 'alerts'" (click)="activeTab.set('alerts')">
+        ⚠️ Stagnant Stock Alerts ({{ report().stagnantAlerts.length }})
+      </button>
+    </div>
+
+    <!-- TAB 1: SUMMARY / OVERVIEW -->
+    @if (activeTab() === 'summary') {
+      <div class="summary-grid animate-fade-in">
+        
+        <!-- Shelf Age Distribution -->
+        <div class="chart-card glass-card">
+          <h3>⏳ Shelf Age Distribution</h3>
+          <p class="chart-sub">Capital tied up by days since stock was purchased</p>
+          
+          <div class="distribution-list">
+            @for (bracket of report().shelfAgeing; track bracket.name) {
+              <div class="dist-row">
+                <div class="dist-labels">
+                  <span class="bracket-name">{{ bracket.name }}</span>
+                  <span class="bracket-val">₹{{ bracket.totalValue | number:'1.2-2' }} ({{ bracket.percentage }}%)</span>
+                </div>
+                <div class="progress-bar-wrap">
+                  <div class="progress-bar-fill" 
+                       [style.width.%]="bracket.percentage" 
+                       [class]="'fill-' + bracket.rangeCode">
+                  </div>
+                </div>
+                <div class="dist-meta">{{ bracket.itemCount }} batch(es)</div>
+              </div>
+            }
+          </div>
+        </div>
+
+        <!-- Expiry Risk Distribution -->
+        <div class="chart-card glass-card">
+          <h3>📅 Expiry Risk Distribution</h3>
+          <p class="chart-sub">Capital categorized by remaining shelf life of batch</p>
+
+          <div class="distribution-list">
+            @for (bracket of report().expiryRisk; track bracket.name) {
+              <div class="dist-row">
+                <div class="dist-labels">
+                  <span class="bracket-name">{{ bracket.name }}</span>
+                  <span class="bracket-val">₹{{ bracket.totalValue | number:'1.2-2' }} ({{ bracket.percentage }}%)</span>
+                </div>
+                <div class="progress-bar-wrap">
+                  <div class="progress-bar-fill" 
+                       [style.width.%]="bracket.percentage" 
+                       [class]="'fill-' + bracket.rangeCode">
+                  </div>
+                </div>
+                <div class="dist-meta">{{ bracket.itemCount }} batch(es)</div>
+              </div>
+            }
+          </div>
+        </div>
+
+      </div>
+    }
+
+    <!-- TAB 2: DETAILED BATCH LEDGER -->
+    @if (activeTab() === 'batches') {
+      <div class="ledger-section animate-fade-in">
+        
+        <!-- Filters Panel -->
+        <div class="filter-panel glass-card">
+          <div class="search-box">
+            🔍 <input type="text" placeholder="Search by name, SKU, batch, rack..." [value]="searchQuery()" (input)="searchQuery.set($any($event.target).value)">
+          </div>
+
+          <div class="dropdown-filters">
+            <div class="filter-group">
+              <label>Category</label>
+              <select [value]="selectedCategory()" (change)="selectedCategory.set($any($event.target).value)">
+                <option value="ALL">All Categories</option>
+                @for (c of categories(); track c) {
+                  <option [value]="c">{{ c | titlecase }}</option>
+                }
+              </select>
+            </div>
+
+            <div class="filter-group">
+              <label>Shelf Age</label>
+              <select [value]="selectedAgeBracket()" (change)="selectedAgeBracket.set($any($event.target).value)">
+                <option value="ALL">All Ages</option>
+                <option value="Fresh">Fresh (0-30 days)</option>
+                <option value="Moderate">Moderate (31-90 days)</option>
+                <option value="Slow-Moving">Slow-Moving (91-180 days)</option>
+                <option value="Stagnant">Stagnant (>180 days)</option>
+              </select>
+            </div>
+
+            <div class="filter-group">
+              <label>Expiry Risk</label>
+              <select [value]="selectedExpiryBracket()" (change)="selectedExpiryBracket.set($any($event.target).value)">
+                <option value="ALL">All Risks</option>
+                <option value="Expired">Expired</option>
+                <option value="Critical">Critical (<90 days)</option>
+                <option value="Warning">Warning (91-180 days)</option>
+                <option value="Healthy">Healthy (>180 days)</option>
+              </select>
+            </div>
+
+            <button class="btn btn-secondary reset-btn" (click)="resetFilters()">Clear</button>
+          </div>
+        </div>
+
+        <!-- Ledger Table -->
+        <div class="table-card glass-card">
+          <div class="table-responsive">
+            <table class="premium-table">
+              <thead>
+                <tr>
+                  <th (click)="toggleSort('name')">Medicine / SKU {{ sortColumn() === 'name' ? (sortDirection() === 'asc' ? '▲' : '▼') : '' }}</th>
+                  <th (click)="toggleSort('batchNumber')">Batch {{ sortColumn() === 'batchNumber' ? (sortDirection() === 'asc' ? '▲' : '▼') : '' }}</th>
+                  <th (click)="toggleSort('purchaseDate')">Purchase Date {{ sortColumn() === 'purchaseDate' ? (sortDirection() === 'asc' ? '▲' : '▼') : '' }}</th>
+                  <th (click)="toggleSort('shelfAgeDays')">Shelf Age {{ sortColumn() === 'shelfAgeDays' ? (sortDirection() === 'asc' ? '▲' : '▼') : '' }}</th>
+                  <th (click)="toggleSort('expiryDate')">Expiry Date {{ sortColumn() === 'expiryDate' ? (sortDirection() === 'asc' ? '▲' : '▼') : '' }}</th>
+                  <th (click)="toggleSort('daysToExpiry')">Shelf Life {{ sortColumn() === 'daysToExpiry' ? (sortDirection() === 'asc' ? '▲' : '▼') : '' }}</th>
+                  <th (click)="toggleSort('stockLevel')">Stock Level {{ sortColumn() === 'stockLevel' ? (sortDirection() === 'asc' ? '▲' : '▼') : '' }}</th>
+                  <th (click)="toggleSort('valueAtCost')">Value (Cost) {{ sortColumn() === 'valueAtCost' ? (sortDirection() === 'asc' ? '▲' : '▼') : '' }}</th>
+                  <th>Rack</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (b of filteredBatches(); track b.id) {
+                  <tr>
+                    <td>
+                      <div class="name-cell">
+                        <strong>{{ b.name }}</strong>
+                        <span class="sub-sku">{{ b.sku }}</span>
+                      </div>
+                    </td>
+                    <td><span class="batch-badge">{{ b.batchNumber }}</span></td>
+                    <td>{{ b.purchaseDate | date:'dd/MM/yyyy' }}</td>
+                    <td>
+                      <div class="age-bracket-cell">
+                        <span>{{ b.shelfAgeDays }} days</span>
+                        <span class="badge" [class]="'badge-age-' + b.shelfAgeBracket.toLowerCase()">
+                          {{ b.shelfAgeBracket }}
+                        </span>
+                      </div>
+                    </td>
+                    <td>{{ b.expiryDate | date:'dd/MM/yyyy' }}</td>
+                    <td>
+                      <div class="expiry-bracket-cell">
+                        <span>{{ b.daysToExpiry <= 0 ? 'Expired' : b.daysToExpiry + ' days' }}</span>
+                        <span class="badge" [class]="'badge-risk-' + b.expiryRiskBracket.toLowerCase()">
+                          {{ b.expiryRiskBracket }}
+                        </span>
+                      </div>
+                    </td>
+                    <td>{{ b.stockLevel }} units</td>
+                    <td class="value-cell">₹{{ b.valueAtCost | number:'1.2-2' }}</td>
+                    <td><span class="rack-label">{{ b.rackLocation || 'A-1' }}</span></td>
+                  </tr>
+                } @empty {
+                  <tr>
+                    <td colspan="9" class="no-records">
+                      No stock batches match the active filter criteria.
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+    }
+
+    <!-- TAB 3: STAGNANT STOCK ALERTS -->
+    @if (activeTab() === 'alerts') {
+      <div class="alerts-section animate-fade-in">
+        <div class="alert-info-banner glass-card">
+          <div class="info-icon">💡</div>
+          <div class="info-body">
+            <h4>What is Stagnant Stock?</h4>
+            <p>These are active inventory batches purchased <strong>more than {{ moderateLimit() }} days ago</strong>. They tie up business capital and should be prioritized for clearing sales, promotions, or stock exchange returns to suppliers.</p>
+          </div>
+        </div>
+
+        <div class="alert-grid">
+          @for (b of report().stagnantAlerts; track b.id) {
+            <div class="alert-item-card glass-card">
+              <div class="alert-header">
+                <span class="sku-badge">{{ b.sku }}</span>
+                <span class="alert-value">₹{{ b.valueAtCost | number:'1.2-2' }}</span>
+              </div>
+              <h3>{{ b.name }}</h3>
+              
+              <div class="alert-specs">
+                <div class="spec-row">
+                  <span>Batch:</span> <strong>{{ b.batchNumber }}</strong>
+                </div>
+                <div class="spec-row">
+                  <span>Rack:</span> <strong>{{ b.rackLocation || 'A-1' }}</strong>
+                </div>
+                <div class="spec-row">
+                  <span>Stock Quantity:</span> <strong>{{ b.stockLevel }} units</strong>
+                </div>
+                <div class="spec-row">
+                  <span>Shelf Age:</span> <strong class="text-orange">{{ b.shelfAgeDays }} days in stock</strong>
+                </div>
+                <div class="spec-row">
+                  <span>Purchase Date:</span> <strong>{{ b.purchaseDate | date:'dd/MM/yyyy' }}</strong>
+                </div>
+                <div class="spec-row">
+                  <span>Expiry Status:</span> 
+                  <span class="badge" [class]="'badge-risk-' + b.expiryRiskBracket.toLowerCase()">
+                    {{ b.expiryRiskBracket }} ({{ b.daysToExpiry <= 0 ? 'Expired' : b.daysToExpiry + ' days remaining' }})
+                  </span>
+                </div>
+              </div>
+
+              <div class="alert-action-row">
+                <a [routerLink]="['/sales']" class="btn btn-primary btn-sm flex-grow">⚡ Create Clearance Bill</a>
+              </div>
+            </div>
+          } @empty {
+            <div class="glass-card no-stagnation">
+              🎉 <strong>Awesome!</strong> No stagnant batches found. All items have been in stock for {{ moderateLimit() }} days or less.
+            </div>
+          }
+        </div>
+      </div>
+    }
+
+  } @else {
+    <div class="error-state glass-card">
+      <p>Could not initialize Stock Ageing report data.</p>
+      <button class="btn btn-primary" (click)="loadReport()">Try Again</button>
+    </div>
+  }
+
+</div>

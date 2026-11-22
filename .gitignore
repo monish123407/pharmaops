@@ -10,7 +10,8 @@
 
 # ── Backend ──────────────────────────────────
 backend/target/
-backend/data/           # H2 database files – never commit live DB
+# H2 database files – never commit live DB
+backend/data/
 backend/.mvn/wrapper/maven-wrapper.jar
 
 # ── Frontend ─────────────────────────────────
@@ -22,7 +23,8 @@ frontend/dist/
 node_modules/
 dist-desktop/
 build/
-jre/                   # bundled JRE – large binary, not for git
+# bundled JREs – large binaries, not for git
+jre*/
 *.dmg
 *.exe
 *.AppImage

@@ -229,3 +229,8 @@
     transform: scale(1) translateY(0);
   }
 }
+.btn-secondary.disabled {
+  opacity: 0.5;
+  cursor: not-allowed !important;
+  pointer-events: none;
+}

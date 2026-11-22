@@ -1,0 +1,214 @@
+<div class="view-container animate-fade-in">
+
+  <!-- Header -->
+  <div class="view-header">
+    <div class="header-left">
+      <h1>🏷️ HSN Code Directory</h1>
+      <p class="header-subtitle">Manage system-wide HSN codes and GST rates. Updates will cascade automatically to linked medicines and stock batches.</p>
+    </div>
+    <div class="header-right">
+      <button class="btn btn-primary" (click)="showAddForm.set(!showAddForm())">
+        {{ showAddForm() ? '✖️ Close Form' : '➕ Register HSN Code' }}
+      </button>
+      <button class="btn btn-secondary" (click)="load()" [disabled]="loading()">
+        🔄 Refresh
+      </button>
+    </div>
+  </div>
+
+  <!-- Info Banner -->
+  <div class="info-banner glass-card">
+    <span class="info-icon">💡</span>
+    <div>
+      <strong>Cascade Notice:</strong>
+      Modifying the CGST/SGST tax rates or code string of an HSN profile here will automatically update
+      all matching <em>Medicine Masters</em> and active stock <em>batches</em> currently holding that HSN code. No manual batch updates needed!
+    </div>
+  </div>
+
+  <!-- Register HSN Code Form Panel -->
+  @if (showAddForm()) {
+    <div class="add-form-card glass-card animate-fade-in">
+      <h3>➕ Register New HSN Code Profile</h3>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>HSN Code *</label>
+          <input
+            type="text"
+            placeholder="e.g. 3004"
+            [ngModel]="newCode()"
+            (ngModelChange)="newCode.set($event)"
+            maxlength="8"
+          />
+        </div>
+
+        <div class="form-group">
+          <label>GST Tax Slab *</label>
+          <select [ngModel]="selectedNewGstLabel()" (ngModelChange)="onNewGstSlabChange($event)">
+            @for (slab of gstSlabs; track slab.label) {
+              <option [value]="slab.label">{{ slab.label }}</option>
+            }
+          </select>
+        </div>
+
+        <div class="form-group span-2">
+          <label>Category Description</label>
+          <input
+            type="text"
+            placeholder="e.g. Formulations & packaged pharmaceutical medicines"
+            [ngModel]="newDescription()"
+            (ngModelChange)="newDescription.set($event)"
+          />
+        </div>
+      </div>
+
+      <div class="form-actions">
+        <button class="btn btn-secondary" (click)="showAddForm.set(false)">Cancel</button>
+        <button class="btn btn-primary" (click)="createNewHsn()" [disabled]="loading()">
+          {{ loading() ? 'Registering...' : 'Save HSN Profile' }}
+        </button>
+      </div>
+    </div>
+  }
+
+  <!-- Search Card -->
+  <div class="search-card glass-card">
+    <div class="search-box">
+      🔍
+      <input
+        type="text"
+        placeholder="Search HSN profiles by code or description..."
+        [value]="searchQuery()"
+        (input)="searchQuery.set($any($event.target).value)"
+      />
+    </div>
+    <span class="result-count">{{ filteredRows().length }} profile(s) found</span>
+  </div>
+
+  <!-- HSN Codes Directory Table -->
+  @if (loading() && rows().length === 0) {
+    <div class="loading-state">
+      <div class="spinner"></div>
+      <p>Loading HSN Code directory...</p>
+    </div>
+  } @else {
+    <div class="table-card glass-card">
+      <div class="table-responsive">
+        <table class="hsn-table">
+          <thead>
+            <tr>
+              <th class="hsn-col">HSN Code</th>
+              <th>Description</th>
+              <th class="gst-col">GST Slab</th>
+              <th class="cgst-col">CGST</th>
+              <th class="cgst-col">SGST</th>
+              <th class="cgst-col">Total GST</th>
+              <th class="action-col">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (row of filteredRows(); track row.id) {
+              <tr [class.editing-row]="row.editing">
+                <!-- HSN Code -->
+                <td class="hsn-col">
+                  @if (row.editing) {
+                    <input
+                      type="text"
+                      class="hsn-input"
+                      [(ngModel)]="row.draftCode"
+                      maxlength="8"
+                    />
+                  } @else {
+                    <span class="hsn-pill">{{ row.code }}</span>
+                  }
+                </td>
+
+                <!-- Description -->
+                <td>
+                  @if (row.editing) {
+                    <input
+                      type="text"
+                      class="desc-input"
+                      [(ngModel)]="row.draftDescription"
+                      placeholder="e.g. Surgical goods & items"
+                    />
+                  } @else {
+                    <span class="desc-text">{{ row.description || '—' }}</span>
+                  }
+                </td>
+
+                <!-- GST Slab Selector -->
+                <td class="gst-col">
+                  @if (row.editing) {
+                    <select class="gst-select" (change)="onEditGstSlabChange(row, $any($event.target).value)">
+                      @for (slab of gstSlabs; track slab.label) {
+                        <option [value]="slab.label" [selected]="slab.cgst === row.draftCgst && slab.sgst === row.draftSgst">
+                          {{ slab.label }}
+                        </option>
+                      }
+                    </select>
+                  } @else {
+                    <span class="gst-label-text">{{ getSlabLabel(row.cgst, row.sgst) }}</span>
+                  }
+                </td>
+
+                <!-- CGST -->
+                <td class="cgst-col font-mono">
+                  @if (row.editing) {
+                    <span class="draft-rate">{{ row.draftCgst }}%</span>
+                  } @else {
+                    {{ row.cgst }}%
+                  }
+                </td>
+
+                <!-- SGST -->
+                <td class="cgst-col font-mono">
+                  @if (row.editing) {
+                    <span class="draft-rate">{{ row.draftSgst }}%</span>
+                  } @else {
+                    {{ row.sgst }}%
+                  }
+                </td>
+
+                <!-- Total GST -->
+                <td class="cgst-col">
+                  @if (row.editing) {
+                    <span class="gst-badge" [class]="'gst-' + draftTotalGst(row)">{{ draftTotalGst(row) }}%</span>
+                  } @else {
+                    <span class="gst-badge" [class]="'gst-' + totalGst(row)">{{ totalGst(row) }}%</span>
+                  }
+                </td>
+
+                <!-- Actions -->
+                <td class="action-col">
+                  @if (row.editing) {
+                    <div class="action-btn-group">
+                      <button class="btn btn-primary btn-sm" (click)="save(row)" [disabled]="row.saving">
+                        {{ row.saving ? '⌛' : '✅ Save' }}
+                      </button>
+                      <button class="btn btn-secondary btn-sm" (click)="cancelEdit(row)" [disabled]="row.saving">
+                        Cancel
+                      </button>
+                    </div>
+                  } @else {
+                    <div class="action-btn-group">
+                      <button class="btn btn-edit btn-sm" (click)="startEdit(row)">✏️ Edit</button>
+                      <button class="btn btn-outline-danger btn-sm" (click)="deleteHsn(row)">🗑️ Delete</button>
+                    </div>
+                  }
+                </td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="7" class="empty-row">
+                  No HSN tax profiles registered in the directory.
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  }
+
+</div>
